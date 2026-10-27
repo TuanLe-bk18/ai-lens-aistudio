@@ -1,0 +1,11 @@
+{
+  "name": "AI-LENS KHTN",
+  "description": "Nền tảng hỗ trợ giáo viên đánh giá năng lực thực hành KHTN 6 bước tích hợp Gemini Agentic Video API",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

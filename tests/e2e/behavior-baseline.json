@@ -1,0 +1,9 @@
+{
+  "server.ts": "1bc2999b14741ade8de9739e9aecf873b39316efd30b99ca2859d47537c0e0ed",
+  "src/domain/validation.ts": "411eb4747a7eb009a62f3572f9b92cd58c1e6d48577baaa0f176b0eacd609b04",
+  "src/domain/validation.test.ts": "5d6320997e159b2ed22034518b80ff8f22312eb4179ea2303ad3571e8640cfaa",
+  "src/data/rubricData.ts": "304fa70c73135d238fc4912ef43ce9aee090983df88ade5551a429709b9346e2",
+  "src/services/geminiVideoService.ts": "aa7a6cd5f6c2937da56608d31d137192862f650a4afe02edd0416c38bf4958ff",
+  "src/storage/mediaStore.ts": "7d72019ddd70276346a0af146e9e6e3e1f6337c552e60752d4cfeb48731ba27c",
+  "src/types.ts": "72bcf4dfc331ead866abd64aaba50795a96aa649dcd494942993f81bcd6e3a98"
+}

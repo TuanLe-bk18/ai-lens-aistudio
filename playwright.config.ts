@@ -1,0 +1,40 @@
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests/e2e',
+  timeout: 120_000,
+  globalTimeout: 900_000,
+  expect: { timeout: 10_000 },
+  fullyParallel: true,
+  workers: 2,
+  retries: 0,
+  forbidOnly: true,
+  outputDir: '.ui-refactor/test-results',
+  reporter: [
+    ['list'],
+    ['json', { outputFile: '.ui-refactor/e2e-results.json' }],
+    ['html', { outputFolder: '.ui-refactor/playwright-report', open: 'never' }],
+  ],
+  use: {
+    baseURL: 'http://127.0.0.1:3100',
+    channel: 'chrome',
+    headless: true,
+    viewport: { width: 1440, height: 1000 },
+    locale: 'vi-VN',
+    timezoneId: 'Asia/Ho_Chi_Minh',
+    reducedMotion: 'reduce',
+    serviceWorkers: 'block',
+    actionTimeout: 15_000,
+    navigationTimeout: 30_000,
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
+  },
+  webServer: {
+    command: 'npm run dev',
+    env: { PORT: '3100', NODE_ENV: 'development', GEMINI_API_KEY: '', GOOGLE_API_KEY: '' },
+    url: 'http://127.0.0.1:3100',
+    reuseExistingServer: false,
+    timeout: 120_000,
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 5_000 },
+  },
+});

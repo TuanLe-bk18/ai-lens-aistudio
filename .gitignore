@@ -1,0 +1,25 @@
+# Node dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Test outputs & Artifacts
+.ui-refactor/
+test-results/
+playwright-report/
+
+# Docs, UI reference, and local skills
+ui-reference/
+docs/
+skills/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+*.log
