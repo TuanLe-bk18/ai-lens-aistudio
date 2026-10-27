@@ -11,11 +11,14 @@ import {
   canPeerReviewerVerify,
   deriveEvidenceReviewStatus,
   evaluateDecisionValidity,
-   getSelfReviews,
+  getSelfReviews,
   needsTeacherAttention,
   recordStudentPeerReview,
   recordStudentSelfReview,
+  removeAllSourcesFromSession,
+  removeSourceFromSession,
   replaceAiEvidencesForSource,
+  restoreSampleSourcesToSession,
   validateEvidenceBounds,
   validateImportedSession,
 } from './validation';
@@ -365,5 +368,70 @@ describe('AI-LENS Domain & Audit Regression Verification', () => {
       rubricIndicators: customIndicators,
     };
     expect(customSession.rubricIndicators).toHaveLength(6);
+  });
+
+  it('Source Removal & Sample Video Restoration: supports deleting individual, all videos, and reloading samples', () => {
+    // 1. Delete single source VID01
+    const sessionAfterOne = removeSourceFromSession(INITIAL_DEMO_SESSION, 'VID01');
+    expect(sessionAfterOne.sources.some((s) => s.id === 'VID01')).toBe(false);
+    expect(sessionAfterOne.sources).toHaveLength(5);
+    expect(sessionAfterOne.evidences.some((e) => e.sourceId === 'VID01')).toBe(false);
+    expect(sessionAfterOne.auditLog[0].action).toContain('VID01');
+
+    // 2. Delete all sources (e.g. all 6 sample videos removed)
+    const sessionEmpty = removeAllSourcesFromSession(INITIAL_DEMO_SESSION);
+    expect(sessionEmpty.sources).toHaveLength(0);
+    expect(sessionEmpty.evidences).toHaveLength(0);
+    expect(sessionEmpty.mode).toBe('custom');
+    expect(sessionEmpty.students[0].visualPosition).toContain('Chờ nạp video');
+    expect(sessionEmpty.students[0].seatLabel).not.toContain('Thảo Linh');
+    // All decisions should now be stale or insufficient_evidence
+    expect(
+      sessionEmpty.decisions.every(
+        (d) => d.level === 'insufficient_evidence' || d.isStale === true
+      )
+    ).toBe(true);
+
+    // 3. Restore sample sources to empty session
+    const sessionRestored = restoreSampleSourcesToSession(
+      sessionEmpty,
+      DEFAULT_VIDEO_SOURCES,
+      INITIAL_DEMO_SESSION.evidences,
+      INITIAL_DEMO_SESSION.decisions
+    );
+    expect(sessionRestored.sources).toHaveLength(6);
+    expect(sessionRestored.mode).toBe('demo_verified');
+    expect(sessionRestored.students[0].seatLabel).toContain('Thảo Linh');
+    expect(sessionRestored.evidences).toHaveLength(INITIAL_DEMO_SESSION.evidences.length);
+    expect(sessionRestored.auditLog[0].action).toBe('Tải lên bộ video mẫu');
+
+    // 4. Custom source preservation when restoring sample videos
+    const customSource = {
+      id: 'IMG01',
+      title: 'Ảnh phiếu học tập',
+      stageLabel: 'Minh chứng phiếu',
+      filename: 'phieu.jpg',
+      videoUrl: 'blob:test',
+      thumbnailUrl: 'blob:test',
+      durationSeconds: 10,
+      sizeBytes: 1024,
+      description: 'Phiếu học tập',
+      expectedCriteria: ['TC3'],
+      mediaType: 'worksheet_image' as const,
+      isCustomUpload: true,
+      mediaMissing: false,
+    };
+    const sessionWithCustom = {
+      ...sessionEmpty,
+      sources: [customSource],
+    };
+    const restoredWithCustom = restoreSampleSourcesToSession(
+      sessionWithCustom,
+      DEFAULT_VIDEO_SOURCES,
+      INITIAL_DEMO_SESSION.evidences,
+      INITIAL_DEMO_SESSION.decisions
+    );
+    expect(restoredWithCustom.sources).toHaveLength(7);
+    expect(restoredWithCustom.sources.some((s) => s.id === 'IMG01')).toBe(true);
   });
 });

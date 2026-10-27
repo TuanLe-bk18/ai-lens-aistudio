@@ -151,6 +151,41 @@ export const DEFAULT_STUDENTS: StudentSeatProfile[] = [
   },
 ];
 
+export const GENERIC_STUDENTS: StudentSeatProfile[] = [
+  {
+    code: 'HS01',
+    seatLabel: 'Vị trí Trái - Ngoài (Gần máy quay)',
+    visualPosition:
+      'Vị trí ngồi cố định đầu bàn bên trái (gần máy quay). Chờ nạp video để AI quan sát trang phục và đặc điểm.',
+    mainObservedRole:
+      'Chưa có thao tác nào được ghi nhận. Vui lòng tải video và phân tích để AI nhận diện hành vi học sinh.',
+  },
+  {
+    code: 'HS02',
+    seatLabel: 'Vị trí Trái - Trong (Phía trong bên trái)',
+    visualPosition:
+      'Vị trí ngồi cố định phía trong bên trái. Chờ nạp video để AI quan sát trang phục và đặc điểm.',
+    mainObservedRole:
+      'Chưa có thao tác nào được ghi nhận. Vui lòng tải video và phân tích để AI nhận diện hành vi học sinh.',
+  },
+  {
+    code: 'HS03',
+    seatLabel: 'Vị trí Phải - Ngoài (Đầu bàn bên phải)',
+    visualPosition:
+      'Vị trí ngồi cố định đầu bàn bên phải. Chờ nạp video để AI quan sát trang phục và đặc điểm.',
+    mainObservedRole:
+      'Chưa có thao tác nào được ghi nhận. Vui lòng tải video và phân tích để AI nhận diện hành vi học sinh.',
+  },
+  {
+    code: 'HS04',
+    seatLabel: 'Vị trí Phải - Trong (Phía trong bên phải)',
+    visualPosition:
+      'Vị trí ngồi cố định phía trong bên phải. Chờ nạp video để AI quan sát trang phục và đặc điểm.',
+    mainObservedRole:
+      'Chưa có thao tác nào được ghi nhận. Vui lòng tải video và phân tích để AI nhận diện hành vi học sinh.',
+  },
+];
+
 export const DEFAULT_VIDEO_SOURCES: VideoSourceItem[] = [
   {
     id: 'VID01',

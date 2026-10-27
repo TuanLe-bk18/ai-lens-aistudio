@@ -153,7 +153,7 @@ export interface SessionState {
   activityTitle: string;
   rubricVersion: string;
   rubricIndicators?: RubricIndicator[];
-  mode: 'demo_verified' | 'live_ai';
+  mode: 'demo_verified' | 'live_ai' | 'custom';
   sessionRevision: number;
   students: StudentSeatProfile[];
   sources: VideoSourceItem[];

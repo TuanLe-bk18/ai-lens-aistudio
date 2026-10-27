@@ -1,5 +1,8 @@
 import {
   CRITERION_TO_INDICATOR,
+  DEFAULT_STUDENTS,
+  GENERIC_STUDENTS,
+  INITIAL_DEMO_SESSION,
   RUBRIC_INDICATORS,
 } from '../data/rubricData';
 import {
@@ -516,6 +519,111 @@ export function replaceAiEvidencesForSource(
         } minh chứng mới từ nguồn ${sourceId}; tự động kiểm tra lại hiệu lực các kết luận liên quan.`,
       },
       ...state.auditLog,
+    ],
+  };
+}
+
+export function removeSourceFromSession(
+  session: SessionState,
+  sourceId: string,
+  actor: string = 'Giáo viên'
+): SessionState {
+  const targetSource = session.sources.find((s) => s.id === sourceId);
+  const newSources = session.sources.filter((s) => s.id !== sourceId);
+  const newEvidences = session.evidences.filter((e) => e.sourceId !== sourceId);
+  const newDecisions = reconcileSessionDecisions(newEvidences, session.decisions);
+
+  const isDemo = newSources.length === 6 && newSources.every((s) => s.id.startsWith('VID'));
+  const newMode = isDemo ? 'demo_verified' : 'custom';
+  const newStudents = newSources.length === 0 ? GENERIC_STUDENTS : session.students;
+
+  const auditTitle = targetSource ? targetSource.title : sourceId;
+  return {
+    ...session,
+    mode: newMode,
+    sessionRevision: (session.sessionRevision || 1) + 1,
+    students: newStudents,
+    sources: newSources,
+    evidences: newEvidences,
+    decisions: newDecisions,
+    auditLog: [
+      {
+        id: `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        actor,
+        action: `Xoá nguồn minh chứng (${sourceId})`,
+        detail: `Đã xoá nguồn ${auditTitle} (${sourceId}) và ${
+          session.evidences.length - newEvidences.length
+        } minh chứng liên quan khỏi đầu vào phân tích.`,
+      },
+      ...session.auditLog,
+    ],
+  };
+}
+
+export function removeAllSourcesFromSession(
+  session: SessionState,
+  actor: string = 'Giáo viên'
+): SessionState {
+  const newDecisions = reconcileSessionDecisions([], session.decisions);
+  return {
+    ...session,
+    mode: 'custom',
+    sessionRevision: (session.sessionRevision || 1) + 1,
+    students: GENERIC_STUDENTS,
+    sources: [],
+    evidences: [],
+    decisions: newDecisions,
+    auditLog: [
+      {
+        id: `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        actor,
+        action: 'Xoá tất cả nguồn minh chứng',
+        detail: `Đã xoá toàn bộ ${session.sources.length} nguồn minh chứng, làm trống thông tin nhận diện demo của nhóm thực hành và đưa phiên về trạng thái chờ nạp video mới.`,
+      },
+      ...session.auditLog,
+    ],
+  };
+}
+
+export function restoreSampleSourcesToSession(
+  session: SessionState,
+  defaultSources: VideoSourceItem[],
+  defaultEvidences: EvidenceItem[],
+  defaultDecisions: TeacherDecisionItem[],
+  actor: string = 'Giáo viên'
+): SessionState {
+  const customSources = session.sources.filter((s) => s.isCustomUpload);
+  const mergedSources = [...defaultSources, ...customSources];
+
+  const customEvidences = session.evidences.filter((e) =>
+    customSources.some((s) => s.id === e.sourceId)
+  );
+  const mergedEvidences = [...defaultEvidences, ...customEvidences];
+  const reconciled = reconcileSessionDecisions(mergedEvidences, defaultDecisions);
+
+  return {
+    ...session,
+    mode: 'demo_verified',
+    lessonTitle: INITIAL_DEMO_SESSION.lessonTitle,
+    activityTitle: INITIAL_DEMO_SESSION.activityTitle,
+    sessionRevision: (session.sessionRevision || 1) + 1,
+    students: DEFAULT_STUDENTS,
+    sources: mergedSources,
+    evidences: mergedEvidences,
+    decisions: reconciled,
+    auditLog: [
+      {
+        id: `AUD-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        timestamp: new Date().toISOString(),
+        actor,
+        action: 'Tải lên bộ video mẫu',
+        detail: `Đã nạp lại bộ ${defaultSources.length} video thực nghiệm mẫu (${defaultSources
+          .map((s) => s.id)
+          .join(', ')}), khôi phục thông tin nhóm thực hành và các thẻ minh chứng chuẩn.`,
+      },
+      ...session.auditLog,
     ],
   };
 }

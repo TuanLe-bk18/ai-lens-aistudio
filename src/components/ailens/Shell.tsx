@@ -42,7 +42,18 @@ export function Shell({ app, children }: { app: AiLensController; children: Reac
         <div className="hidden h-6 w-px bg-border sm:block" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{app.session.gradeSubject} · {app.session.lessonTitle}</p>
-          <p className="truncate text-xs text-muted-foreground">Nhóm thực hành · {app.session.students.length} học sinh · <span className="text-success">● {app.session.mode === 'live_ai' ? 'Gemini Live' : 'Phiên mẫu đã kiểm chứng'}</span></p>
+          <p className="truncate text-xs text-muted-foreground">
+            Nhóm thực hành · {app.session.students.length} học sinh ·{' '}
+            {app.session.sources.length === 0 ? (
+              <span className="text-warning font-medium">● Chưa có video nguồn</span>
+            ) : app.session.mode === 'live_ai' ? (
+              <span className="text-primary font-medium">● Gemini Live AI</span>
+            ) : app.session.mode === 'demo_verified' ? (
+              <span className="text-success font-medium">● Phiên mẫu đã kiểm chứng</span>
+            ) : (
+              <span className="text-foreground/80 font-medium">● Phiên tuỳ biến</span>
+            )}
+          </p>
         </div>
         <Btn variant="ghost" size="sm" className="hidden sm:inline-flex" onClick={printReport}><Download className="size-4" aria-hidden="true" />Xuất báo cáo</Btn>
         <div className="relative" ref={settingsRef}>

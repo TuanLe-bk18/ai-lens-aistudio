@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Camera, ScanEye, UserRound, Users } from 'lucide-react';
+import { Camera, Pencil, ScanEye, UserRound, Users, X } from 'lucide-react';
+import { formatTime, type AiLensController } from '../../hooks/useAiLens';
 import type { StudentCode, StudentSeatProfile } from '../../types';
 import { Card, cn } from './kit';
 
@@ -12,18 +13,43 @@ const SEATS: { code: StudentCode; label: string; row: number; column: number }[]
   { code: 'HS03', label: 'Phải - Ngoài', row: 2, column: 3 },
 ];
 
-export function StudentSeating({ students }: { students: StudentSeatProfile[] }) {
+export function StudentSeating({ app }: { app: AiLensController }) {
+  const { session } = app;
+  const students = session.students;
   const [selectedCode, setSelectedCode] = useState<StudentCode>('HS01');
-  const selected = students.find((student) => student.code === selectedCode)
-    ?? SEATS.map((seat) => students.find((student) => student.code === seat.code)).find(Boolean);
+  const [editingStudent, setEditingStudent] = useState<StudentSeatProfile | null>(null);
+
+  const selected =
+    students.find((student) => student.code === selectedCode) ??
+    SEATS.map((seat) => students.find((student) => student.code === seat.code)).find(Boolean);
+
+  const activeStudentEvs = selected
+    ? session.evidences.filter((e) => e.studentCodes.includes(selected.code))
+    : [];
 
   return (
     <section aria-labelledby="group-title">
-      <div className="mb-3">
-        <h2 id="group-title" className="text-base font-semibold">Nhóm thực hành</h2>
-        <p className="text-sm text-muted-foreground">Chọn học sinh trên sơ đồ để xem nhận diện và thao tác bên cạnh</p>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 id="group-title" className="text-base font-semibold">Nhóm thực hành</h2>
+          <p className="text-sm text-muted-foreground">
+            Chọn học sinh trên sơ đồ để xem nhận diện và thao tác bên cạnh
+          </p>
+        </div>
+        {session.sources.length === 0 && (
+          <span className="rounded-lg bg-warning-soft px-2.5 py-1 text-xs font-medium text-warning-foreground">
+            Chờ video nguồn để nhận diện
+          </span>
+        )}
       </div>
+
       <Card className="overflow-hidden">
+        {session.sources.length === 0 && (
+          <div className="border-b border-warning/30 bg-warning-soft/60 px-5 py-3 text-xs leading-relaxed text-warning-foreground">
+            <strong>Thông báo đồng bộ:</strong> Tất cả video mẫu đã được xoá. Thông tin nhận diện và thao tác của học sinh bên dưới đã được chuyển sang dạng vị trí chuẩn để chờ video mới. Bạn có thể bấm <strong>"Chỉnh sửa"</strong> để cập nhật tên và đặc điểm của học sinh trong nhóm thực tế.
+          </div>
+        )}
+
         <div className="grid md:grid-cols-[minmax(18rem,5fr)_minmax(0,7fr)]">
           <div className="min-w-0 border-b border-border bg-background/50 p-4 md:border-r md:border-b-0 md:p-6">
             <div role="group" aria-label="Chọn học sinh theo vị trí quanh bàn" aria-describedby="seat-map-perspective" className="mx-auto w-full max-w-md">
@@ -81,31 +107,160 @@ export function StudentSeating({ students }: { students: StudentSeatProfile[] })
             aria-label={selected ? undefined : 'Thông tin học sinh'}
             className="min-w-0 space-y-5 p-5 sm:p-6"
           >
-            {selected ? <>
-              <div className="flex items-start gap-3">
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary"><Users className="size-5" aria-hidden="true" /></span>
-                <div className="min-w-0">
-                  <h3 className="text-xl font-bold">{selected.code}</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{selected.seatLabel}</p>
+            {selected ? (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                      <Users className="size-5" aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="text-xl font-bold">{selected.code}</h3>
+                      <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                        {selected.seatLabel}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setEditingStudent({ ...selected })}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-muted"
+                  >
+                    <Pencil className="size-3.5" />
+                    <span>Chỉnh sửa</span>
+                  </button>
                 </div>
-              </div>
-              <dl className="space-y-5 border-t border-border pt-5 text-sm leading-relaxed">
-                <div>
-                  <dt className="mb-2 flex items-center gap-2 font-semibold"><ScanEye className="size-4 text-primary" aria-hidden="true" />Đặc điểm nhận diện</dt>
-                  <dd className="whitespace-pre-wrap wrap-break-word text-muted-foreground">{selected.visualPosition}</dd>
-                </div>
-                <div>
-                  <dt className="mb-2 font-semibold">Thao tác chính</dt>
-                  <dd className="whitespace-pre-wrap wrap-break-word">{selected.mainObservedRole}</dd>
-                </div>
-              </dl>
-            </> : <p className="text-sm text-muted-foreground">Phiên chưa có thông tin học sinh để hiển thị.</p>}
+
+                <dl className="space-y-5 border-t border-border pt-5 text-sm leading-relaxed">
+                  <div>
+                    <dt className="mb-2 flex items-center gap-2 font-semibold">
+                      <ScanEye className="size-4 text-primary" aria-hidden="true" />
+                      Đặc điểm nhận diện
+                    </dt>
+                    <dd className="whitespace-pre-wrap wrap-break-word text-muted-foreground">
+                      {selected.visualPosition}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="mb-2 font-semibold">Thao tác chính</dt>
+                    {session.sources.length === 0 ? (
+                      <dd className="rounded-lg bg-muted/40 p-3 text-xs italic text-muted-foreground border border-dashed border-border">
+                        Chưa có video đầu vào. Hãy tải video hoặc ảnh phiếu để AI tiến hành nhận diện thao tác của học sinh {selected.code}.
+                      </dd>
+                    ) : session.mode === 'demo_verified' ? (
+                      <dd className="whitespace-pre-wrap wrap-break-word">
+                        {selected.mainObservedRole}
+                      </dd>
+                    ) : activeStudentEvs.length > 0 ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">
+                          Ghi nhận từ {activeStudentEvs.length} minh chứng thực tế:
+                        </p>
+                        <ul className="space-y-1.5 text-xs text-foreground/90">
+                          {activeStudentEvs.map((ev) => (
+                            <li key={ev.id} className="rounded-lg border border-border bg-muted/50 p-2.5">
+                              <span className="font-semibold text-primary">{ev.id}</span>{' '}
+                              <span className="text-muted-foreground">
+                                ({ev.sourceId} • {formatTime(ev.startSeconds)}–{formatTime(ev.endSeconds)}):
+                              </span>{' '}
+                              <span>{ev.observableBehavior}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <dd className="rounded-lg bg-muted/40 p-3 text-xs italic text-muted-foreground border border-dashed border-border">
+                        Chưa có thao tác nào được ghi nhận cho {selected.code} từ các video hiện tại. Bấm "Phân tích video với Gemini" tại bước 2 hoặc bổ sung minh chứng thủ công.
+                      </dd>
+                    )}
+                  </div>
+                </dl>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Phiên chưa có thông tin học sinh để hiển thị.</p>
+            )}
           </div>
         </div>
+
         <div className="border-t border-border px-5 py-3 text-xs leading-relaxed text-muted-foreground">
           <b className="font-medium text-foreground">Giới hạn nhận diện:</b> Định danh theo vị trí ngồi và góc máy cố định, không cần tài khoản. Khi góc quay bị khuất hoặc không chắc chắn, AI-LENS giữ trạng thái <code>unknown</code> để học sinh và giáo viên xác minh.
         </div>
       </Card>
+
+      {/* Modal Chỉnh sửa thông tin học sinh */}
+      {editingStudent && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-player/70 p-4 backdrop-blur-xs"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-5 text-foreground shadow-2xl sm:p-6 animate-in fade-in duration-150">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <h3 className="text-base font-bold text-foreground">
+                Chỉnh sửa thông tin học sinh {editingStudent.code}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setEditingStudent(null)}
+                className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-4 text-sm">
+              <label className="block space-y-1.5">
+                <span className="font-medium">Tên / Vị trí học sinh</span>
+                <input
+                  type="text"
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editingStudent.seatLabel}
+                  onChange={(e) =>
+                    setEditingStudent({ ...editingStudent, seatLabel: e.target.value })
+                  }
+                  placeholder="Ví dụ: Vị trí Trái - Ngoài (Nguyễn Văn A)"
+                />
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="font-medium">Đặc điểm nhận diện (quần áo, kính, tóc, vị trí)</span>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editingStudent.visualPosition}
+                  onChange={(e) =>
+                    setEditingStudent({ ...editingStudent, visualPosition: e.target.value })
+                  }
+                  placeholder="Mô tả đặc điểm ngoại hình hoặc trang phục để nhận diện trên video..."
+                />
+              </label>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2.5 border-t border-border pt-4">
+              <button
+                type="button"
+                onClick={() => setEditingStudent(null)}
+                className="rounded-xl border border-input bg-card px-4 py-2 text-sm font-medium text-foreground hover:bg-muted transition"
+              >
+                Huỷ
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  app.handleUpdateStudent(editingStudent.code, {
+                    seatLabel: editingStudent.seatLabel,
+                    visualPosition: editingStudent.visualPosition,
+                  });
+                  setEditingStudent(null);
+                }}
+                className="rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition"
+              >
+                Lưu thay đổi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

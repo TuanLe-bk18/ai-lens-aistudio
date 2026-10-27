@@ -1,30 +1,31 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   CRITERION_TO_INDICATOR,
+  DEFAULT_VIDEO_SOURCES,
   INITIAL_DEMO_SESSION,
   RUBRIC_INDICATORS,
 } from '../data/rubricData';
 import {
   applyEvidenceUpdateWithInvalidation,
-
   canConcludeCompetencyLevel,
   canPeerReviewerVerify,
   computeSessionMetrics,
-
   getAcceptedPersonalEvidences,
-
   getSelfReviews,
-
   reconcileSessionDecisions,
   recordStudentPeerReview,
   recordStudentSelfReview,
+  removeAllSourcesFromSession,
+  removeSourceFromSession,
   replaceAiEvidencesForSource,
+  restoreSampleSourcesToSession,
   validateEvidenceBounds,
   validateImportedSession,
 } from '../domain/validation';
 import {
   blobToBase64,
   clearAllCustomMediaFromIndexedDb,
+  deleteCustomMediaFromIndexedDb,
   inspectVideoFileMetadata,
   loadCustomMediaFromIndexedDb,
   saveCustomMediaToIndexedDb,
@@ -39,6 +40,7 @@ import {
   RubricIndicator,
   SessionState,
   StudentCode,
+  StudentSeatProfile,
   TranscriptSegment,
   VideoProcessingMode,
   VideoSourceItem,
@@ -60,7 +62,7 @@ export function useAiLens() {
       if (saved) {
         const parsed = JSON.parse(saved);
         const validated = validateImportedSession(parsed);
-        if (validated.valid && validated.session && validated.session.sources.length >= 6) {
+        if (validated.valid && validated.session && Array.isArray(validated.session.sources)) {
           return validated.session;
         }
       }
@@ -350,6 +352,94 @@ export function useAiLens() {
       ],
     }));
     setSelectedSourceId(newId);
+  };
+
+  const handleDeleteSource = async (sourceId: string) => {
+    const targetSource = session.sources.find((s) => s.id === sourceId);
+    if (!targetSource) return;
+
+    if (targetSource.isCustomUpload) {
+      customBlobsRef.current.delete(sourceId);
+      await deleteCustomMediaFromIndexedDb(sourceId);
+    }
+
+    setSession((prev) => removeSourceFromSession(prev, sourceId));
+
+    const remainingSources = session.sources.filter((s) => s.id !== sourceId);
+    if (selectedSourceId === sourceId) {
+      setSelectedSourceId(remainingSources[0]?.id || '');
+    }
+
+    if (newEvSourceId === sourceId) {
+      setNewEvSourceId(remainingSources[0]?.id || '');
+    }
+
+    const activeEv = session.evidences.find((e) => e.id === activeEvidenceId);
+    if (activeEv && activeEv.sourceId === sourceId) {
+      const remainingEvidences = session.evidences.filter((e) => e.sourceId !== sourceId);
+      setActiveEvidenceId(remainingEvidences[0]?.id || null);
+    }
+  };
+
+  const handleDeleteAllSources = async () => {
+    customBlobsRef.current.clear();
+    await clearAllCustomMediaFromIndexedDb();
+
+    setSession((prev) => removeAllSourcesFromSession(prev));
+    setSelectedSourceId('');
+    setNewEvSourceId('');
+    setActiveEvidenceId(null);
+  };
+
+  const handleLoadSampleVideos = () => {
+    setSession((prev) =>
+      restoreSampleSourcesToSession(
+        prev,
+        DEFAULT_VIDEO_SOURCES,
+        INITIAL_DEMO_SESSION.evidences,
+        INITIAL_DEMO_SESSION.decisions
+      )
+    );
+    setSelectedSourceId('VID01');
+    setNewEvSourceId('VID05');
+    setActiveEvidenceId('EV-01');
+  };
+
+  const handleUpdateStudent = (code: StudentCode, updates: Partial<StudentSeatProfile>) => {
+    setSession((prev) => ({
+      ...prev,
+      sessionRevision: prev.sessionRevision + 1,
+      students: prev.students.map((st) => (st.code === code ? { ...st, ...updates } : st)),
+      auditLog: [
+        {
+          id: `AUD-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          actor: 'Giáo viên',
+          action: `Cập nhật thông tin học sinh (${code})`,
+          detail: `Đã chỉnh sửa thông tin nhận diện/vị trí của học sinh ${code}.`,
+        },
+        ...prev.auditLog,
+      ],
+    }));
+  };
+
+  const handleUpdateLessonInfo = (lessonTitle: string, activityTitle: string) => {
+    setSession((prev) => ({
+      ...prev,
+      lessonTitle: lessonTitle.trim() || prev.lessonTitle,
+      activityTitle: activityTitle.trim() || prev.activityTitle,
+      sessionRevision: prev.sessionRevision + 1,
+      auditLog: [
+        {
+          id: `AUD-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          actor: 'Giáo viên',
+          action: 'Cập nhật tiêu đề bài học & hoạt động',
+          detail: `Tên bài: ${lessonTitle} | Hoạt động: ${activityTitle}`,
+        },
+        ...prev.auditLog,
+      ],
+    }));
   };
 
   const handleAnalyzeWithGemini = async (source: VideoSourceItem) => {
@@ -846,6 +936,11 @@ export function useAiLens() {
     handleExportJson,
     handleImportJson,
     handleCustomVideoUpload,
+    handleDeleteSource,
+    handleDeleteAllSources,
+    handleLoadSampleVideos,
+    handleUpdateStudent,
+    handleUpdateLessonInfo,
     handleAnalyzeWithGemini,
     handleAddManualEvidence,
     handleConfirmSelfReview,

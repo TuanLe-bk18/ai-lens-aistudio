@@ -97,6 +97,28 @@ export async function clearAllCustomMediaFromIndexedDb(): Promise<void> {
   }
 }
 
+export async function deleteCustomMediaFromIndexedDb(sourceId: string): Promise<boolean> {
+  try {
+    const db = await openMediaDb();
+    if (!db) return false;
+    return await new Promise<boolean>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      store.delete(sourceId);
+      tx.oncomplete = () => {
+        db.close();
+        resolve(true);
+      };
+      tx.onerror = () => {
+        db.close();
+        reject(tx.error);
+      };
+    });
+  } catch {
+    return false;
+  }
+}
+
 export async function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
