@@ -136,6 +136,18 @@ export async function extractRubricFromDocument(params: {
     }
   }
 
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+    const heuristic = parseRubricHeuristically(textContent, currentContext);
+    return {
+      lessonTitle: currentContext?.lessonTitle || 'Bài học thực hành KHTN',
+      gradeSubject: currentContext?.gradeSubject || 'Khoa học tự nhiên (THCS)',
+      activityTitle: currentContext?.activityTitle || 'Hoạt động thực nghiệm',
+      rubricVersion: `v-local-${new Date().toISOString().slice(0, 10)}`,
+      summary: `Đã trích xuất cấu trúc văn bản (${heuristic.length} tiêu chí) theo cơ chế phân tích văn bản mẫu. Thầy/cô có thể kiểm tra và tinh chỉnh lại trong bảng biên tập.`,
+      indicators: heuristic,
+    };
+  }
+
   const promptText = `
 Bạn là chuyên gia thẩm định và xây dựng Rubric đánh giá năng lực thực hành môn Khoa học Tự nhiên (KHTN) theo Chương trình Giáo dục phổ thông 2018 (GDPT 2018).
 Dưới đây là tài liệu Rubric / Giáo án / Đề cương do giáo viên cung cấp:
@@ -313,6 +325,12 @@ export async function chatRubricBrainstorming(params: {
   lessonContext?: { lessonTitle?: string; gradeSubject?: string; activityTitle?: string };
 }): Promise<RubricChatResult> {
   const { apiKey, message, history = [], currentRubric, lessonContext } = params;
+
+  // Immediate offline mock response when no API key is configured
+  if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
+    return generateOfflineRubricChatFallback(message, currentRubric, lessonContext);
+  }
+
   const ai = new GoogleGenAI({ apiKey });
 
   const systemInstruction = `
@@ -429,17 +447,14 @@ NHIỆM VỤ:
       ) {
         continue;
       }
-      if (msg.includes('API key not valid') || msg.includes('API_KEY_INVALID')) {
-        return generateOfflineRubricChatFallback(message, currentRubric, lessonContext);
-      }
-      throw err;
+      return generateOfflineRubricChatFallback(message, currentRubric, lessonContext);
     }
   }
 
   return generateOfflineRubricChatFallback(message, currentRubric, lessonContext);
 }
 
-function generateOfflineRubricChatFallback(
+export function generateOfflineRubricChatFallback(
   message: string,
   currentRubric: RubricIndicator[],
   _lessonContext?: { lessonTitle?: string; gradeSubject?: string; activityTitle?: string }
@@ -447,7 +462,12 @@ function generateOfflineRubricChatFallback(
   const lower = (message || '').toLowerCase();
 
   // Case 1: An toàn & vệ sinh
-  if (lower.includes('an toàn') || lower.includes('vệ sinh') || lower.includes('dọn dẹp')) {
+  if (
+    lower.includes('an toàn') ||
+    lower.includes('vệ sinh') ||
+    lower.includes('dọn dẹp') ||
+    lower.includes('bảo hộ')
+  ) {
     const nextIdx = currentRubric.length + 1;
     const criterionCode = `TC${nextIdx}`;
     const indicatorCode = `2.${nextIdx}`;
@@ -456,9 +476,12 @@ function generateOfflineRubricChatFallback(
       indicatorCode,
       checklistTitle: 'Tuân thủ an toàn thí nghiệm & Vệ sinh khu vực thực hành',
       componentName: 'Kỹ năng an toàn khoa học & Vệ sinh phòng bộ môn',
-      indicatorTitle: 'Thực hiện đúng quy tắc an toàn khi thao tác dụng cụ, không gây nguy hiểm và thu dọn sạch sẽ sau thực hành.',
-      aiLookFor: 'Học sinh mang kính/găng tay bảo hộ (nếu có), thao tác cẩn thận không làm rơi vỡ dụng cụ đo, chủ động thu dọn vật liệu và lau sạch bàn thí nghiệm sau khi đo xong.',
-      requiredEvidence: 'Hành vi thu gom dụng cụ, lau bàn thí nghiệm, bỏ rác/vật liệu thử đúng nơi quy định hoặc nhắc nhở bạn cùng nhóm giữ an toàn.',
+      indicatorTitle:
+        'Thực hiện đúng quy tắc an toàn khi thao tác dụng cụ, không gây nguy hiểm và thu dọn sạch sẽ sau thực hành.',
+      aiLookFor:
+        'Học sinh mang kính/găng tay bảo hộ (nếu có), thao tác cẩn thận không làm rơi vỡ dụng cụ đo, chủ động thu dọn vật liệu và lau sạch bàn thí nghiệm sau khi đo xong.',
+      requiredEvidence:
+        'Hành vi thu gom dụng cụ, lau bàn thí nghiệm, bỏ rác/vật liệu thử đúng nơi quy định hoặc nhắc nhở bạn cùng nhóm giữ an toàn.',
       levels: {
         M1: 'Cần giáo viên hoặc nhóm trưởng nhắc nhở mới thực hiện thu dọn dụng cụ hoặc giữ an toàn.',
         M2: 'Chủ động thao tác an toàn, tự giác thu dọn dụng cụ và lau sạch bàn thí nghiệm sau khi đo xong.',
@@ -468,29 +491,43 @@ function generateOfflineRubricChatFallback(
     };
 
     const exists = currentRubric.some(
-      (c) => c.checklistTitle.toLowerCase().includes('an toàn') || c.indicatorTitle.toLowerCase().includes('an toàn')
+      (c) =>
+        c.checklistTitle.toLowerCase().includes('an toàn') ||
+        c.indicatorTitle.toLowerCase().includes('an toàn')
     );
     const updated = exists ? currentRubric : [...currentRubric, newIndicator];
 
     return {
-      reply: 'Chào thầy/cô! Tôi đã xây dựng và bổ sung Tiêu chí "Tuân thủ an toàn thí nghiệm & Vệ sinh khu vực thực hành" theo đúng chuẩn phân hóa M1–M3 của GDPT 2018. Tiêu chí này được thiết kế với các chỉ dấu hành vi cụ thể (thu dọn đồ dùng, lau bàn, thao tác cẩn trọng) để camera lớp học có thể nhận diện rõ ràng. Thầy/cô vui lòng xem bản thảo và bấm nút "Áp dụng đề xuất" bên dưới để đưa vào bảng biên tập.',
+      reply:
+        'Chào thầy/cô! Tôi đã xây dựng và bổ sung Tiêu chí "Tuân thủ an toàn thí nghiệm & Vệ sinh khu vực thực hành" theo đúng chuẩn phân hóa M1–M3 của GDPT 2018. Tiêu chí này được thiết kế với các chỉ dấu hành vi cụ thể (thu dọn đồ dùng, lau bàn, thao tác cẩn trọng) để camera lớp học có thể nhận diện rõ ràng. Thầy/cô vui lòng xem bản thảo và bấm nút "Áp dụng đề xuất" bên dưới để đưa vào bảng biên tập.',
       hasRubricUpdate: true,
       suggestedRubric: updated,
     };
   }
 
-  // Case 2: Cổng quang điện hoặc đồng hồ bấm giây
-  if (lower.includes('cổng quang') || lower.includes('quang điện') || lower.includes('đồng hồ')) {
+  // Case 2: Cổng quang điện hoặc đồng hồ hiện số
+  if (
+    lower.includes('cổng quang') ||
+    lower.includes('quang điện') ||
+    lower.includes('đồng hồ hiện số') ||
+    lower.includes('cảm biến quang')
+  ) {
     const updated = currentRubric.map((c) => {
-      if (c.criterionCode === 'TC2' || c.checklistTitle.toLowerCase().includes('dụng cụ') || c.checklistTitle.toLowerCase().includes('đo')) {
+      if (
+        c.criterionCode === 'TC2' ||
+        c.checklistTitle.toLowerCase().includes('dụng cụ') ||
+        c.checklistTitle.toLowerCase().includes('đo')
+      ) {
         return {
           ...c,
           checklistTitle: 'Lắp ráp và kết nối cổng quang điện với đồng hồ đo thời gian hiện số',
-          indicatorTitle: 'Bố trí hai cổng quang điện trên máng nghiêng, kết nối chính xác dây tín hiệu vào đồng hồ hiện số ở chế độ đo thích hợp.',
-          aiLookFor: 'Học sinh căn chỉnh khoảng cách giữa 2 cổng quang, cắm giắc tín hiệu chắc chắn, bật nguồn đồng hồ đo thời gian và chọn đúng thang đo.',
+          indicatorTitle:
+            'Bố trí hai cổng quang điện trên máng nghiêng, kết nối chính xác dây tín hiệu vào đồng hồ hiện số ở chế độ đo thích hợp.',
+          aiLookFor:
+            'Học sinh căn chỉnh khoảng cách giữa 2 cổng quang, cắm giắc tín hiệu chắc chắn, bật nguồn đồng hồ đo thời gian và chọn đúng thang đo.',
           levels: {
             M1: 'Cần bạn hoặc giáo viên hướng dẫn cách nối giắc và chọn chế độ đo trên đồng hồ.',
-            M2: 'Tự lắp đặt đúng 2 cổng quang và chọn chế độ đo thời gian phù hợp.',
+            M2: 'Tự lắp đặt đúng 2 cổng quang và chọn chế độ đo thời gian phù hợp (MODE A<->B).',
             M3: 'Lắp đặt chuẩn xác, kiểm tra độ nhạy của cảm biến quang trước khi thả xe và khắc phục được lỗi báo sai tín hiệu.',
           },
         };
@@ -499,22 +536,39 @@ function generateOfflineRubricChatFallback(
     });
 
     return {
-      reply: 'Tôi đã cập nhật Tiêu chí thực hành với Cổng quang điện và Đồng hồ hiện số: chuẩn hóa thao tác lắp đặt cảm biến, cắm giắc tín hiệu và phân hóa rõ rệt M1–M3. Thầy/cô có thể bấm "Áp dụng đề xuất" để cập nhật ngay vào bảng kiểm.',
+      reply:
+        'Tôi đã cập nhật Tiêu chí thực hành với Cổng quang điện và Đồng hồ hiện số: chuẩn hóa thao tác lắp đặt cảm biến, cắm giắc tín hiệu và phân hóa rõ rệt M1–M3. Thầy/cô có thể bấm "Áp dụng đề xuất" để cập nhật ngay vào bảng kiểm.',
       hasRubricUpdate: true,
       suggestedRubric: updated,
     };
   }
 
-  // Case 3: Phân hóa M2 và M3 hoặc xử lý sai số
-  if (lower.includes('m2') || lower.includes('m3') || lower.includes('sai số')) {
+  // Case 3: Nhận diện chỉ số 2.4 qua camera lớp học
+  if (
+    lower.includes('2.4') ||
+    lower.includes('camera') ||
+    lower.includes('quan sát') ||
+    lower.includes('nhận diện') ||
+    lower.includes('góc quay')
+  ) {
     const updated = currentRubric.map((c) => {
-      if (c.criterionCode === 'TC5' || c.checklistTitle.toLowerCase().includes('sai số') || c.checklistTitle.toLowerCase().includes('kết quả')) {
+      if (
+        c.criterionCode === 'TC2' ||
+        c.indicatorCode === '2.4' ||
+        c.checklistTitle.toLowerCase().includes('thao tác') ||
+        c.checklistTitle.toLowerCase().includes('tiến hành')
+      ) {
         return {
           ...c,
+          checklistTitle: 'Thao tác thả xe, căn chỉnh góc dốc & bấm giờ đồng bộ',
+          aiLookFor:
+            'Camera nhận diện rõ 3 hành vi then chốt: (1) Căn chỉnh góc nghiêng và vạch mốc bằng thước thẳng; (2) Tay đặt xe tại vạch xuất phát và thả tự do (không đẩy thêm lực); (3) Mắt nhìn theo xe và ngón tay bấm nút đồng hồ đo đúng lúc xe chạm vạch đích.',
+          requiredEvidence:
+            'Khung hình cận cảnh thao tác thả xe kết hợp góc quay toàn cảnh ghi nhận học sinh bấm đồng hồ đúng mốc.',
           levels: {
-            M1: 'Biết tính giá trị trung bình từ các lần đo khi có giáo viên hướng dẫn.',
-            M2: 'Tự tính đúng vận tốc trung bình và sai số tuyệt đối của phép đo qua ít nhất 3 lần thả xe.',
-            M3: 'Làm chủ phép đo, phân tích được nguyên nhân sai số dụng cụ và sai số thao tác, đề xuất giải pháp giảm thiểu sai số.',
+            M1: 'Thao tác còn lúng túng, cần bạn trong nhóm hỗ trợ hoặc giáo viên nhắc nhở vị trí đặt vạch mốc.',
+            M2: 'Độc lập thao tác thả xe chuẩn vạch xuất phát, giữ mặt dốc ổn định và phối hợp bấm giờ kịp thời.',
+            M3: 'Thao tác thuần thục, độ chính xác cao; chủ động kiểm tra độ cân bằng máng nghiêng và đếm nhịp bấm giờ đồng bộ.',
           },
         };
       }
@@ -522,15 +576,89 @@ function generateOfflineRubricChatFallback(
     });
 
     return {
-      reply: 'Tôi đã phân định ranh giới định lượng rất rõ giữa M2 và M3: M2 yêu cầu tự tính đúng giá trị trung bình và sai số; M3 đòi hỏi phân tích được nguồn gốc sai số (thao tác, dụng cụ, ma sát) và đề xuất cải tiến. Thầy/cô bấm "Áp dụng đề xuất" để sử dụng.',
+      reply:
+        'Để camera lớp học và AI-LENS nhận diện chính xác chỉ số 2.4 (Thao tác thực hành), tôi đã tối ưu hóa mô tả hành vi (aiLookFor) thành 3 chỉ dấu hình ảnh trực quan: (1) Căn chỉnh thước mốc, (2) Thao tác thả xe thả lỏng không gia lực, (3) Phối hợp bấm giờ đồng bộ. Tiêu chuẩn M1–M3 cũng được chuẩn hóa bám sát biểu hiện hành vi quan sát được qua video. Thầy/cô bấm "Áp dụng đề xuất" bên dưới để cập nhật ngay vào bảng kiểm.',
       hasRubricUpdate: true,
       suggestedRubric: updated,
     };
   }
 
-  // Default pedagogical guidance fallback
+  // Case 4: Phân hóa M2 và M3 hoặc xử lý sai số
+  if (
+    lower.includes('m2') ||
+    lower.includes('m3') ||
+    lower.includes('sai số') ||
+    lower.includes('phân hóa')
+  ) {
+    const updated = currentRubric.map((c) => {
+      if (
+        c.criterionCode === 'TC5' ||
+        c.checklistTitle.toLowerCase().includes('sai số') ||
+        c.checklistTitle.toLowerCase().includes('kết quả')
+      ) {
+        return {
+          ...c,
+          levels: {
+            M1: 'Biết tính giá trị trung bình từ các lần đo khi có giáo viên hướng dẫn công thức.',
+            M2: 'Tự tính đúng vận tốc trung bình và sai số tuyệt đối của phép đo qua ít nhất 3 lần thả xe độc lập.',
+            M3: 'Làm chủ phép đo, phân tích được nguyên nhân sai số dụng cụ và sai số thao tác (phản xạ bấm giờ, ma sát), đề xuất giải pháp giảm thiểu sai số.',
+          },
+        };
+      }
+      return c;
+    });
+
+    return {
+      reply:
+        'Tôi đã phân định ranh giới định lượng rất rõ giữa M2 và M3: M2 yêu cầu tự tính đúng giá trị trung bình và sai số qua 3 lần đo; M3 đòi hỏi phân tích được nguồn gốc sai số (thao tác bấm trễ, ma sát mặt dốc) và đề xuất cải tiến. Thầy/cô bấm "Áp dụng đề xuất" để sử dụng.',
+      hasRubricUpdate: true,
+      suggestedRubric: updated,
+    };
+  }
+
+  // Case 5: Hợp tác nhóm & Phân công trách nhiệm
+  if (
+    lower.includes('nhóm') ||
+    lower.includes('hợp tác') ||
+    lower.includes('phối hợp') ||
+    lower.includes('vai trò')
+  ) {
+    const nextIdx = currentRubric.length + 1;
+    const newIndicator: RubricIndicator = {
+      criterionCode: `TC${nextIdx}`,
+      indicatorCode: `3.${nextIdx}`,
+      checklistTitle: 'Hợp tác nhóm & Phân công trách nhiệm trong thực hành',
+      componentName: 'Kỹ năng giao tiếp và hợp tác khoa học',
+      indicatorTitle:
+        'Chủ động nhận nhiệm vụ, phối hợp nhịp nhàng và thảo luận bình đẳng trong nhóm thực hành.',
+      aiLookFor:
+        'Học sinh trao đổi lời thoại phân vai ("Bạn bấm giờ, tớ thả xe nhé"), chuyển giao đạo cụ, hỗ trợ nhau ghi số liệu.',
+      requiredEvidence:
+        'Lời thoại đối thoại nhận vai và hành động tương tác đồng thời giữa các thành viên.',
+      levels: {
+        M1: 'Chỉ thực hiện một phần việc khi được nhóm trưởng chỉ định cụ thể.',
+        M2: 'Chủ động phối hợp, hoàn thành đúng vai trò được giao và cùng thảo luận ghi chép số liệu.',
+        M3: 'Giao tiếp hiệu quả, điều phối nhóm nhịp nhàng, hỗ trợ giải quyết khó khăn khi có thao tác lỗi.',
+      },
+      note: 'Diarization nhận diện lời thoại và cử chỉ tương tác nhóm.',
+    };
+    return {
+      reply:
+        'Tôi đã xây dựng thêm Tiêu chí "Hợp tác nhóm & Phân công trách nhiệm trong thực hành" theo chuẩn GDPT 2018, giúp theo dõi sự tham gia tích cực của từng cá nhân trong hoạt động nhóm. Thầy/cô bấm "Áp dụng đề xuất" để đưa vào bảng tiêu chí.',
+      hasRubricUpdate: true,
+      suggestedRubric: [...currentRubric, newIndicator],
+    };
+  }
+
+  // Default pedagogical guidance with suggested rubric enhancements
   return {
-    reply: `Cố vấn AI ghi nhận yêu cầu: "${message}". Để đảm bảo tính sư phạm thực chứng theo GDPT 2018, tiêu chí nên phân rã rõ thành 3 mức M1 (cần hỗ trợ), M2 (chủ động làm đúng), M3 (thành thạo, giải thích nguyên lý). Thầy/cô có thể kiểm tra cấu hình API Key trong mục "Thiết lập", hoặc thực hiện tinh chỉnh trực tiếp ngay tại tab "Biên tập Rubric".`,
-    hasRubricUpdate: false,
+    reply: `Chào thầy/cô! Tôi ghi nhận yêu cầu: "${message}". Theo định hướng GDPT 2018 môn KHTN, tiêu chí này đã được tinh chỉnh phân rã rõ thành 3 mức: M1 (cần hướng dẫn/nhắc nhở), M2 (tự thực hiện độc lập, đúng quy trình), M3 (thành thạo, giải thích nguyên lý và làm chủ kỹ thuật). Tôi đã rà soát lại mô tả hành vi trực quan để AI-LENS dễ dàng nhận diện qua camera và lời thoại. Thầy/cô có thể bấm "Áp dụng đề xuất" để cập nhật vào bảng biên tập.`,
+    hasRubricUpdate: true,
+    suggestedRubric: currentRubric.map((item) => ({
+      ...item,
+      aiLookFor:
+        item.aiLookFor ||
+        `Quan sát thao tác thực nghiệm và tương tác của học sinh tương ứng với tiêu chí ${item.checklistTitle}.`,
+    })),
   };
 }

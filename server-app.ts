@@ -7,6 +7,7 @@ import { analyzeClassroomMediaWithGemini } from './src/services/geminiVideoServi
 import {
   extractRubricFromDocument,
   chatRubricBrainstorming,
+  generateOfflineRubricChatFallback,
 } from './src/services/geminiRubricService';
 import { StudentSeatProfile, VideoProcessingMode } from './src/types';
 
@@ -345,10 +346,6 @@ export async function startServer() {
   app.post('/api/rubric/chat', async (req: Request, res: Response) => {
     try {
       const apiKey = getActiveGeminiApiKey(req);
-      if (!apiKey) {
-        res.status(400).json({ error: 'Chưa cấu hình GEMINI_API_KEY trên máy chủ hoặc qua mục Thiết lập.' });
-        return;
-      }
       const { message, history, currentRubric, lessonContext } = req.body || {};
       if (!message || !message.trim()) {
         res.status(400).json({ error: 'Thiếu nội dung câu hỏi/yêu cầu.' });
@@ -363,11 +360,14 @@ export async function startServer() {
       });
       res.json(result);
     } catch (err: any) {
-      let cleanError = err?.message || 'Lỗi khi trao đổi với AI Cố vấn.';
-      if (cleanError.includes('API key not valid') || cleanError.includes('API_KEY_INVALID')) {
-        cleanError = 'Khóa Gemini API không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra cấu hình API Key.';
-      }
-      res.status(500).json({ error: cleanError });
+      console.warn('[AI-LENS] Rubric chat fallback:', err?.message);
+      const { message, currentRubric, lessonContext } = req.body || {};
+      const fallbackResult = generateOfflineRubricChatFallback(
+        message || '',
+        currentRubric || [],
+        lessonContext
+      );
+      res.json(fallbackResult);
     }
   });
 

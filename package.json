@@ -10,7 +10,8 @@
     "preview": "NODE_ENV=production tsx server.ts",
     "test": "vitest run src/domain",
     "test:e2e": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@fontsource/be-vietnam-pro": "^5.3.0",
