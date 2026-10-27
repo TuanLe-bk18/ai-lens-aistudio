@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   AlertCircle,
-  ArrowRight,
   Bot,
   Check,
   CheckCircle2,
@@ -15,7 +14,6 @@ import {
   Loader2,
   MessageSquare,
   Plus,
-  RefreshCw,
   RotateCcw,
   Save,
   ScanEye,
@@ -193,7 +191,7 @@ export function RubricWorkspace({
     setDeleteTargetIdx(null);
     setNotice({
       type: 'success',
-      text: `Đã xóa tiêu chí ${deletedCode}. Nhấn "Duyệt & Chốt Rubric" ở dưới để lưu thay đổi vào phiên đánh giá.`,
+      text: `Đã xóa tiêu chí ${deletedCode}. Nhấn "Duyệt Rubric" ở dưới để lưu thay đổi vào phiên đánh giá.`,
     });
     setTimeout(() => setNotice(null), 4000);
   };
@@ -381,16 +379,10 @@ export function RubricWorkspace({
     }, 1200);
   };
 
-  // Final approval / lock rubric
-  const handleApproveAndLock = () => {
+  // Final approval rubric
+  const handleApprove = () => {
     app.handleApproveRubric(indicators);
     onClose();
-  };
-
-  const handleApproveAndProceed = () => {
-    app.handleApproveRubric(indicators);
-    onClose();
-    app.setActiveStep(2);
   };
 
   const handleClose = () => {
@@ -996,13 +988,9 @@ export function RubricWorkspace({
             <Btn variant="ghost" onClick={handleClose}>
               Đóng
             </Btn>
-            <Btn variant="outline" onClick={handleApproveAndLock}>
+            <Btn variant="primary" onClick={handleApprove}>
               <CheckCircle2 className="size-4" />
-              <span>Duyệt & Chốt Rubric</span>
-            </Btn>
-            <Btn variant="primary" onClick={handleApproveAndProceed}>
-              <span>Chốt & Chuyển sang AI tìm minh chứng</span>
-              <ArrowRight className="size-4" />
+              <span>Duyệt Rubric</span>
             </Btn>
           </div>
         </footer>
@@ -1031,7 +1019,7 @@ export function RubricWorkspace({
                     khỏi bảng Rubric phiên này không?
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Sau khi xóa, bạn cần bấm <span className="font-semibold text-foreground">"Duyệt & Chốt Rubric"</span> ở góc dưới để lưu thay đổi.
+                    Sau khi xóa, bạn cần bấm <span className="font-semibold text-foreground">"Duyệt Rubric"</span> ở góc dưới để lưu thay đổi.
                   </p>
                 </div>
               </div>
