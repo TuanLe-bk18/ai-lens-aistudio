@@ -387,6 +387,19 @@ export function RubricWorkspace({
     onClose();
   };
 
+  const handleApproveAndProceed = () => {
+    app.handleApproveRubric(indicators);
+    onClose();
+    app.setActiveStep(2);
+  };
+
+  const handleClose = () => {
+    if (hasChanges) {
+      app.handleApproveRubric(indicators);
+    }
+    onClose();
+  };
+
   return (
     <div
       role="dialog"
@@ -415,7 +428,7 @@ export function RubricWorkspace({
               <RotateCcw className="size-4" />
               <span className="hidden sm:inline">Mẫu gốc</span>
             </Btn>
-            <Btn size="sm" variant="ghost" aria-label="Đóng hộp thoại" onClick={onClose}>
+            <Btn size="sm" variant="ghost" aria-label="Đóng hộp thoại" onClick={handleClose}>
               <X className="size-5" />
             </Btn>
           </div>
@@ -979,13 +992,17 @@ export function RubricWorkspace({
               · Tương thích video live & tự động đồng bộ sang tất cả 6 bước
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <Btn variant="ghost" onClick={onClose}>
+          <div className="flex flex-wrap items-center gap-2">
+            <Btn variant="ghost" onClick={handleClose}>
               Đóng
             </Btn>
-            <Btn variant="primary" onClick={handleApproveAndLock}>
+            <Btn variant="outline" onClick={handleApproveAndLock}>
               <CheckCircle2 className="size-4" />
-              <span>Duyệt & Chốt Rubric cho phiên này</span>
+              <span>Duyệt & Chốt Rubric</span>
+            </Btn>
+            <Btn variant="primary" onClick={handleApproveAndProceed}>
+              <span>Chốt & Chuyển sang AI tìm minh chứng</span>
+              <ArrowRight className="size-4" />
             </Btn>
           </div>
         </footer>

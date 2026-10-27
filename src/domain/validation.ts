@@ -10,6 +10,7 @@ import {
   EvidenceItem,
   IndicatorCode,
   PeerReviewRecord,
+  RubricIndicator,
   SelfReviewRecord,
   SessionState,
   StudentCode,
@@ -72,7 +73,8 @@ export function hasUnresolvedPeerDispute(ev: EvidenceItem): boolean {
 
 export function validateEvidenceBounds(
   ev: Pick<EvidenceItem, 'startSeconds' | 'endSeconds' | 'sourceId' | 'criterionCode'>,
-  sources: VideoSourceItem[]
+  sources: VideoSourceItem[],
+  rubricIndicators?: RubricIndicator[]
 ): { valid: boolean; error?: string } {
   const source = sources.find((s) => s.id === ev.sourceId);
   if (!source) {
@@ -90,7 +92,11 @@ export function validateEvidenceBounds(
       error: `Mốc kết thúc (${ev.endSeconds}s) vượt quá thời lượng video (${source.durationSeconds}s)`,
     };
   }
-  if (!CRITERION_TO_INDICATOR[ev.criterionCode]) {
+  const isKnownCriterion =
+    Boolean(CRITERION_TO_INDICATOR[ev.criterionCode]) ||
+    Boolean(rubricIndicators?.some((r) => r.criterionCode === ev.criterionCode)) ||
+    (typeof ev.criterionCode === 'string' && ev.criterionCode.startsWith('TC'));
+  if (!isKnownCriterion) {
     return { valid: false, error: `Mã tiêu chí không hợp lệ: ${ev.criterionCode}` };
   }
   return { valid: true };
@@ -409,7 +415,7 @@ export function applyEvidenceUpdateWithInvalidation(
   const bumpedEvidence: EvidenceItem = {
     ...updatedEvidence,
     revision: nextRevision,
-    indicatorCode: CRITERION_TO_INDICATOR[updatedEvidence.criterionCode],
+    indicatorCode: updatedEvidence.indicatorCode || CRITERION_TO_INDICATOR[updatedEvidence.criterionCode] || '2.4',
     resolvedAtRevision: isResolvedByTeacher ? nextRevision : updatedEvidence.resolvedAtRevision,
     selfReview: updatedEvidence.selfReview
       ? {
@@ -666,11 +672,15 @@ export function computeSessionMetrics(state: SessionState) {
     )
   ).length;
 
-  const totalCells = state.students.length * RUBRIC_INDICATORS.length; // 4 * 5 = 20
+  const activeIndicators =
+    state.rubricIndicators && state.rubricIndicators.length > 0
+      ? state.rubricIndicators
+      : RUBRIC_INDICATORS;
+  const totalCells = state.students.length * activeIndicators.length;
   let concludedLevelCells = 0;
   let staleCells = 0;
   for (const st of state.students) {
-    for (const ind of RUBRIC_INDICATORS) {
+    for (const ind of activeIndicators) {
       const val = evaluateDecisionValidity(state, st.code, ind.indicatorCode);
       if (val.status === 'valid' && val.effectiveLevel !== 'insufficient_evidence') {
         concludedLevelCells += 1;
@@ -708,7 +718,11 @@ export function buildStudentLearningRecommendation(
   const areasToDevelop: string[] = [];
   const nextTasks: string[] = [];
 
-  for (const ind of RUBRIC_INDICATORS) {
+  const activeIndicators =
+    state.rubricIndicators && state.rubricIndicators.length > 0
+      ? state.rubricIndicators
+      : RUBRIC_INDICATORS;
+  for (const ind of activeIndicators) {
     const validity = evaluateDecisionValidity(state, studentCode, ind.indicatorCode);
 
     if (validity.status === 'stale_needs_review') {

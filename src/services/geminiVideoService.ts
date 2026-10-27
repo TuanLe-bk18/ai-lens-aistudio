@@ -67,6 +67,12 @@ export async function analyzeClassroomMediaWithGemini(
     .join('\n');
 
   const indicatorsToUse = rubricIndicators && rubricIndicators.length > 0 ? rubricIndicators : RUBRIC_INDICATORS;
+  const validCriterionCodes = Array.from(
+    new Set(indicatorsToUse.map((r) => r.criterionCode).filter(Boolean))
+  );
+  if (validCriterionCodes.length === 0) {
+    validCriterionCodes.push('TC1', 'TC2', 'TC3', 'TC4', 'TC5');
+  }
 
   const checklistText = indicatorsToUse
     .map(
@@ -80,7 +86,7 @@ export async function analyzeClassroomMediaWithGemini(
 1. SƠ ĐỒ VỊ TRÍ & DẤU HIỆU NHẬN DIỆN HÌNH ẢNH 4 HỌC SINH TRONG NHÓM (CỰC KỲ QUAN TRỌNG ĐỂ XÁC ĐỊNH "AI NÓI GÌ"):
 ${seatMapText}
 
-2. BẢNG KIỂM THU THẬP BẰNG CHỨNG (TC1 - TC5):
+2. BẢNG KIỂM THU THẬP BẰNG CHỨNG (${validCriterionCodes.join(', ')}):
 ${checklistText}
 
 3. QUY TRÌNH AGENTIC VIDEO & AUDIO-VISUAL SPEAKER GROUNDING BẮT BUỘC:
@@ -117,7 +123,7 @@ ${checklistText}
               type: Type.ARRAY,
               items: {
                 type: Type.STRING,
-                enum: ['TC1', 'TC2', 'TC3', 'TC4', 'TC5'],
+                enum: validCriterionCodes,
               },
             },
           },
@@ -149,7 +155,7 @@ ${checklistText}
             endSeconds: { type: Type.NUMBER },
             criterionCode: {
               type: Type.STRING,
-              enum: ['TC1', 'TC2', 'TC3', 'TC4', 'TC5'],
+              enum: validCriterionCodes,
             },
             subjectScope: {
               type: Type.STRING,
@@ -368,6 +374,9 @@ ${checklistText}
           Math.max(start + 1, Math.ceil(Number(item.endSeconds) || start + 4))
         );
 
+        const matchedIndicator = indicatorsToUse.find((r) => r.criterionCode === criterionCode);
+        const indicatorCode = matchedIndicator?.indicatorCode || CRITERION_TO_INDICATOR[criterionCode] || '2.4';
+
         return {
           id: `EV-AI-${sourceId}-${Date.now().toString().slice(-4)}-${idx + 1}`,
           revision: 1,
@@ -375,7 +384,7 @@ ${checklistText}
           startSeconds: start,
           endSeconds: end,
           criterionCode,
-          indicatorCode: CRITERION_TO_INDICATOR[criterionCode] || '2.4',
+          indicatorCode,
           subjectScope: item.subjectScope || 'individual',
           studentCodes: Array.isArray(item.studentCodes) ? item.studentCodes : [],
           observableBehavior: item.observableBehavior || '',

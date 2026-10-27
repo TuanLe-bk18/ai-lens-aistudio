@@ -434,8 +434,16 @@ export function useAiLens() {
         action: `Duyệt & chốt Rubric (${newIndicators.length} tiêu chí)`,
         detail: `Đã chuẩn hóa tiêu chí đánh giá cho bài học ${prev.lessonTitle}.`,
       };
+      const customCodes = newIndicators
+        .map((i) => i.criterionCode)
+        .filter((c) => !['TC1', 'TC2', 'TC3', 'TC4', 'TC5'].includes(c));
+      const updatedSources = prev.sources.map((src) => ({
+        ...src,
+        expectedCriteria: Array.from(new Set([...src.expectedCriteria, ...customCodes])),
+      }));
       return {
         ...prev,
+        sources: updatedSources,
         rubricIndicators: newIndicators,
         rubricVersion: `Tùy biến GDPT 2018 (${newIndicators.length} tiêu chí)`,
         sessionRevision: (prev.sessionRevision || 1) + 1,
@@ -454,7 +462,8 @@ export function useAiLens() {
         endSeconds: newEvEnd,
         criterionCode: newEvCriterion,
       },
-      session.sources
+      session.sources,
+      session.rubricIndicators
     );
     if (!check.valid) {
       setNewEvError(check.error || 'Dữ liệu không hợp lệ');
@@ -465,6 +474,8 @@ export function useAiLens() {
       return;
     }
 
+    const matchedInd = (session.rubricIndicators || RUBRIC_INDICATORS).find((r) => r.criterionCode === newEvCriterion);
+    const indicatorCode = matchedInd?.indicatorCode || CRITERION_TO_INDICATOR[newEvCriterion] || '2.4';
     const isTeacherStep = activeStep === 5;
     const newItem: EvidenceItem = {
       id: `EV-MAN-${Date.now().toString().slice(-3)}`,
@@ -473,7 +484,7 @@ export function useAiLens() {
       startSeconds: newEvStart,
       endSeconds: newEvEnd,
       criterionCode: newEvCriterion,
-      indicatorCode: CRITERION_TO_INDICATOR[newEvCriterion],
+      indicatorCode,
       subjectScope: newEvStudents.length > 0 ? 'individual' : 'unknown',
       studentCodes: newEvStudents,
       observableBehavior: newEvBehavior.trim(),
@@ -600,12 +611,14 @@ export function useAiLens() {
     if (resolution === 'accept_student_edit' && activeProposal?.status === 'propose_edit') {
       const newStudents = activeProposal.proposedStudentCodes || ev.studentCodes;
       const newCrit = activeProposal.proposedCriterionCode || ev.criterionCode;
+      const matchedInd = (session.rubricIndicators || RUBRIC_INDICATORS).find((r) => r.criterionCode === newCrit);
+      const indicatorCode = matchedInd?.indicatorCode || CRITERION_TO_INDICATOR[newCrit] || '2.4';
       const modifiedEv: EvidenceItem = {
         ...ev,
         studentCodes: newStudents,
         subjectScope: newStudents.length > 0 ? 'individual' : 'unknown',
         criterionCode: newCrit,
-        indicatorCode: CRITERION_TO_INDICATOR[newCrit],
+        indicatorCode,
         clarity: 'clear',
         teacherStatus: 'modified_accepted',
         teacherNote: `GV chấp nhận đề nghị bổ sung/điều chỉnh của ${activeProposal.reviewerCode}.`,
@@ -693,7 +706,11 @@ export function useAiLens() {
       studentCode,
       indicatorCode
     );
-    const rubricInd = RUBRIC_INDICATORS.find((r) => r.indicatorCode === indicatorCode)!;
+    const activeRubric =
+      session.rubricIndicators && session.rubricIndicators.length > 0
+        ? session.rubricIndicators
+        : RUBRIC_INDICATORS;
+    const rubricInd = activeRubric.find((r) => r.indicatorCode === indicatorCode) || activeRubric[0];
 
     const newDecision = {
       studentCode,

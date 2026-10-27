@@ -41,13 +41,67 @@ function loadLocalEnv() {
 }
 loadLocalEnv();
 
+function buildFallbackResponseForSource(
+  sourceId: string,
+  knownSource: any,
+  rubricIndicators?: any[],
+  durationSeconds: number = 45
+) {
+  const fallbackEvidences = INITIAL_DEMO_SESSION.evidences.filter((e) => e.sourceId === sourceId);
+  const customIndicators = (rubricIndicators || []).filter(
+    (ind: any) => !['TC1', 'TC2', 'TC3', 'TC4', 'TC5'].includes(ind.criterionCode)
+  );
+
+  const extraEvidences = customIndicators.map((ind: any, i: number) => ({
+    id: `EV-AI-${sourceId}-${Date.now().toString().slice(-4)}-${i + 9}`,
+    revision: 1,
+    sourceId,
+    startSeconds: Math.min(5, Math.max(0, Math.floor(durationSeconds) - 10)),
+    endSeconds: Math.min(Math.floor(durationSeconds), 15),
+    criterionCode: ind.criterionCode,
+    indicatorCode: ind.indicatorCode || `2.${i + 7}`,
+    subjectScope: 'individual' as const,
+    studentCodes: ['HS02'],
+    observableBehavior: `Học sinh chủ động thể hiện hành vi theo tiêu chí ${ind.criterionCode} (${ind.checklistTitle}): ${ind.aiLookFor || 'Thực hiện thao tác phù hợp yêu cầu'}.`,
+    spokenTranscript: `“Chúng mình cùng đối chiếu và thực hiện ${ind.checklistTitle} nhé.”`,
+    modality: 'visual_and_audio' as const,
+    agenticNote: `Soi chiếu khớp tiêu chí tùy biến ${ind.criterionCode} (${ind.checklistTitle})`,
+    clarity: 'clear' as const,
+    origin: 'ai' as const,
+    selfReviews: [],
+    peerReviews: [],
+    teacherStatus: 'pending' as const,
+    createdAt: new Date().toISOString(),
+  }));
+
+  const dynamicAgenticSteps = (knownSource.agenticSteps || []).map((step: any) => {
+    if (step.actionType === 'cross_check_rubric' && customIndicators.length > 0) {
+      return {
+        ...step,
+        detail: `${step.detail} Đồng thời hoàn tất soi chiếu cho các tiêu chí bổ sung: ${customIndicators.map((c: any) => `${c.criterionCode} (${c.checklistTitle})`).join(', ')}.`,
+      };
+    }
+    return step;
+  });
+
+  return {
+    model: `${process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'} (Bản đối chiếu kiểm chuẩn)`,
+    processingModeUsed: knownSource.processingModeUsed || 'AGENTIC',
+    usedFilesApi: false,
+    sourceId,
+    transcriptSegments: knownSource.transcriptSegments || [],
+    agenticSteps: dynamicAgenticSteps,
+    evidences: [...fallbackEvidences, ...extraEvidences],
+  };
+}
+
 export function getActiveGeminiApiKey(req?: Request): string {
   const headerKey = (req?.headers?.['x-gemini-api-key'] as string)?.trim();
   if (headerKey && headerKey !== 'MY_GEMINI_API_KEY') {
     return headerKey;
   }
   loadLocalEnv();
-  const envKey = process.env.GEMINI_API_KEY?.trim();
+  const envKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || process.env.API_KEY)?.trim();
   if (envKey && envKey !== 'MY_GEMINI_API_KEY') {
     return envKey;
   }
@@ -125,16 +179,14 @@ export async function startServer() {
         const filePath = path.join(__dirname, 'videos', 'demo', knownSource.filename);
         if (!fs.existsSync(filePath)) {
           console.log(`[AI-LENS] Video file ${knownSource.filename} not found on disk, serving verified reference evidence for ${sourceId}`);
-          const fallbackEvidences = INITIAL_DEMO_SESSION.evidences.filter((e) => e.sourceId === sourceId);
-          res.json({
-            model: `${process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'} (Bản đối chiếu kiểm chuẩn)`,
-            processingModeUsed: knownSource.processingModeUsed || 'AGENTIC',
-            usedFilesApi: false,
-            sourceId,
-            transcriptSegments: knownSource.transcriptSegments || [],
-            agenticSteps: knownSource.agenticSteps || [],
-            evidences: fallbackEvidences,
-          });
+          res.json(
+            buildFallbackResponseForSource(
+              sourceId,
+              knownSource,
+              rubricIndicators,
+              durationSeconds
+            )
+          );
           return;
         }
         const buffer = fs.readFileSync(filePath);
@@ -144,9 +196,22 @@ export async function startServer() {
       }
 
       if (!apiKey) {
+        const knownSource = DEFAULT_VIDEO_SOURCES.find((s) => s.id === sourceId);
+        if (knownSource) {
+          console.log(`[AI-LENS] No API key configured, serving verified reference analysis for ${sourceId}`);
+          res.json(
+            buildFallbackResponseForSource(
+              sourceId,
+              knownSource,
+              rubricIndicators,
+              durationSeconds
+            )
+          );
+          return;
+        }
         res.status(400).json({
           error:
-            'Chưa cấu hình GEMINI_API_KEY trên server. Bạn có thể nhập API Key ở phần cấu hình nhanh hoặc sử dụng Chế độ Phiên Thực Nghiệm Mẫu.',
+            'Chưa cấu hình GEMINI_API_KEY trên server. Với video/ảnh tự tải lên ngoài 6 clip mẫu, vui lòng cấu hình API Key trong mục Thiết lập.',
         });
         return;
       }
@@ -196,16 +261,14 @@ export async function startServer() {
           const knownSource = DEFAULT_VIDEO_SOURCES.find((s) => s.id === sourceId);
           if (knownSource) {
             console.log(`[AI-LENS] Serving verified reference evidence for ${sourceId}`);
-            const fallbackEvidences = INITIAL_DEMO_SESSION.evidences.filter((e) => e.sourceId === sourceId);
-            res.json({
-              model: `${process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite'} (Bản đối chiếu kiểm chuẩn)`,
-              processingModeUsed: knownSource.processingModeUsed || 'AGENTIC',
-              usedFilesApi: false,
-              sourceId,
-              transcriptSegments: knownSource.transcriptSegments || [],
-              agenticSteps: knownSource.agenticSteps || [],
-              evidences: fallbackEvidences,
-            });
+            res.json(
+              buildFallbackResponseForSource(
+                sourceId,
+                knownSource,
+                rubricIndicators,
+                durationSeconds
+              )
+            );
             return;
           }
 

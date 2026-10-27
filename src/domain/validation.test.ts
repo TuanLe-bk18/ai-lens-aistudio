@@ -326,4 +326,44 @@ describe('AI-LENS Domain & Audit Regression Verification', () => {
       'Thử nghiệm cập nhật transcript mới'
     );
   });
+
+  it('Custom Rubric: supports adding TC6 and validates evidences & session metrics dynamically', () => {
+    const customIndicators = [
+      ...RUBRIC_INDICATORS,
+      {
+        criterionCode: 'TC6',
+        indicatorCode: '2.7',
+        componentName: '2. Tìm tòi, khám phá thế giới tự nhiên',
+        indicatorTitle: '2.7. Tuân thủ an toàn phòng thí nghiệm và bảo quản dụng cụ.',
+        checklistTitle: '2.7. An toàn & bảo quản',
+        aiLookFor: 'Học sinh cất dọn đồ, tắt thiết bị hoặc đeo đồ bảo hộ.',
+        requiredEvidence: 'Đoạn video thao tác thu dọn đồ thí nghiệm.',
+        levels: {
+          M1: 'Thu dọn dụng cụ khi được nhắc nhở.',
+          M2: 'Tự giác thu dọn đồ dùng gọn gàng sau thí nghiệm.',
+          M3: 'Chủ động hướng dẫn bạn bè và kiểm tra an toàn toàn nhóm.',
+        },
+      },
+    ];
+
+    // Validate bounds with custom rubric
+    const validRes = validateEvidenceBounds(
+      {
+        sourceId: 'VID01',
+        startSeconds: 5,
+        endSeconds: 15,
+        criterionCode: 'TC6',
+      },
+      DEFAULT_VIDEO_SOURCES,
+      customIndicators
+    );
+    expect(validRes.valid).toBe(true);
+
+    // Validate session with custom indicators
+    const customSession = {
+      ...INITIAL_DEMO_SESSION,
+      rubricIndicators: customIndicators,
+    };
+    expect(customSession.rubricIndicators).toHaveLength(6);
+  });
 });

@@ -269,7 +269,7 @@ function FixEditor({ ev, app }: { ev: EvidenceItem; app: AiLensController }) {
       <fieldset>
         <legend className="mb-2 text-sm font-medium">Thuộc tiêu chí nào?</legend>
         <div className="flex flex-wrap gap-2">
-          {RUBRIC_INDICATORS.map((indicator) => (
+          {app.rubricIndicators.map((indicator) => (
             <button
               key={indicator.criterionCode}
               type="button"

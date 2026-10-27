@@ -6,16 +6,15 @@ import {
   MessageSquareQuote,
   Play,
   Plus,
+  ScanEye,
   Sparkles,
 } from 'lucide-react';
+import { RUBRIC_INDICATORS } from '../../data/rubricData';
 import { deriveEvidenceReviewStatus } from '../../domain/validation';
 import { formatTime, type AiLensController } from '../../hooks/useAiLens';
 import type { EvidenceItem } from '../../types';
 import { StepNav } from './Shell';
 import { Btn, Card, Code, EvidenceStatus, Notice, StudentDot, cn } from './kit';
-
-const FILTERS = ['all', 'TC1', 'TC2', 'TC3', 'TC4', 'TC5', 'unclear'] as const;
-type EvidenceFilter = (typeof FILTERS)[number];
 
 const TIME_LINK_REGEX =
   /\b(VID\d+)\s*\((\d{2}):(\d{2})[–-](\d{2}):(\d{2})\)|\b(VID\d+)\s+(\d{2}):(\d{2})[–-](\d{2}):(\d{2})\b|\b(VID\d+)\s*\((\d{1,2})[–-](\d{1,2})s\)|\b(\d{2}):(\d{2})(?:[–-](\d{2}):(\d{2}))?\b|\bgiây\s+(\d{1,2})(?:[–-](\d{1,2}))?\b/g;
@@ -107,9 +106,31 @@ function isUnclear(evidence: EvidenceItem) {
 }
 
 export function Step2({ app }: { app: AiLensController }) {
-  const [filter, setFilter] = useState<EvidenceFilter>('all');
+  const [filter, setFilter] = useState<string>('all');
   const { session, selectedSourceId, currentVideoTime, activeEvidenceId, analyzingSourceId } = app;
   const currentSource = session.sources.find((source) => source.id === selectedSourceId) || session.sources[0];
+  const activeIndicators =
+    app.rubricIndicators && app.rubricIndicators.length > 0
+      ? app.rubricIndicators
+      : RUBRIC_INDICATORS;
+
+  const criterionCodes = Array.from(
+    new Set([
+      ...activeIndicators.map((i) => i.criterionCode),
+      ...session.evidences.map((e) => e.criterionCode),
+    ])
+  );
+
+  const filterOptions: { value: string; label: string; isCustom?: boolean }[] = [
+    { value: 'all', label: 'Tất cả' },
+    ...criterionCodes.map((code) => ({
+      value: code,
+      label: code,
+      isCustom: !['TC1', 'TC2', 'TC3', 'TC4', 'TC5'].includes(code),
+    })),
+    { value: 'unclear', label: 'Chưa rõ' },
+  ];
+
   const list = session.evidences.filter(
     (evidence) =>
       filter === 'all' || (filter === 'unclear' ? isUnclear(evidence) : evidence.criterionCode === filter)
@@ -228,6 +249,49 @@ export function Step2({ app }: { app: AiLensController }) {
                     : `${formatTime(currentVideoTime)} / ${formatTime(currentSource.durationSeconds)}`}
                 </span>
               </div>
+              <div className="rounded-xl border border-border bg-background/50 p-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <ScanEye className="size-4 text-primary shrink-0" />
+                    <span>Bộ tiêu chí AI đang soi chiếu video ({activeIndicators.length} tiêu chí):</span>
+                  </div>
+                  {activeIndicators.length > 5 && (
+                    <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 border border-emerald-200">
+                      Có {activeIndicators.length - 5} tiêu chí tùy biến mới
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Tiêu chí AI soi chiếu">
+                  {activeIndicators.map((ind) => {
+                    const isCustom = !['TC1', 'TC2', 'TC3', 'TC4', 'TC5'].includes(ind.criterionCode);
+                    const isSelectedFilter = filter === ind.criterionCode;
+                    return (
+                      <button
+                        type="button"
+                        key={ind.criterionCode}
+                        onClick={() => setFilter(isSelectedFilter ? 'all' : ind.criterionCode)}
+                        title={`${ind.criterionCode} (Chỉ số ${ind.indicatorCode} - ${ind.checklistTitle})\nCần tìm: ${ind.aiLookFor}\nMinh chứng: ${ind.requiredEvidence}`}
+                        className={cn(
+                          'inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
+                          isSelectedFilter
+                            ? 'border-primary bg-primary text-primary-foreground shadow-xs'
+                            : isCustom
+                            ? 'border-emerald-300 bg-emerald-50/80 text-emerald-900 hover:bg-emerald-100'
+                            : 'border-border bg-card hover:bg-muted text-foreground'
+                        )}
+                      >
+                        <span className="font-bold">{ind.criterionCode}</span>
+                        <span className="max-w-28 truncate">{ind.checklistTitle}</span>
+                        {isCustom && (
+                          <span className="rounded-full bg-emerald-200/90 px-1 text-[10px] font-semibold text-emerald-900">
+                            Mới
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               {currentSource.mediaMissing && (
                 <div
                   role="alert"
@@ -345,6 +409,52 @@ export function Step2({ app }: { app: AiLensController }) {
             </div>
           </Card>
 
+          <details key={`agentic-${currentSource.id}`} open className="group rounded-xl border border-primary/20 bg-primary-soft/10 px-4 py-3">
+            <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-semibold text-primary [&::-webkit-details-marker]:hidden">
+              <ScanEye className="size-4 shrink-0 text-primary" />
+              <span className="flex-1">Tiến trình AI Agentic soi chiếu Video & Đối chiếu Rubric · {currentSource.id}</span>
+              <span className="text-xs text-muted-foreground">{currentSource.agenticSteps?.length || 0} bước soi chiếu</span>
+              <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            {currentSource.agenticSteps && currentSource.agenticSteps.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {currentSource.agenticSteps.map((step) => (
+                  <div key={step.stepNumber} className="rounded-xl border border-border bg-card p-3 text-xs shadow-xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 font-semibold">
+                      <div className="flex items-center gap-2 text-foreground">
+                        <span className="flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px]">
+                          {step.stepNumber}
+                        </span>
+                        <span>
+                          {step.actionType === 'scan_transcript'
+                            ? 'Bước A: Quét kênh âm thanh & bóc tách lời thoại'
+                            : step.actionType === 'zoom_frames_high_fps'
+                            ? 'Bước B: Zoom khung hình xác thực người nói (khẩu hình & cử chỉ)'
+                            : 'Bước C: Soi chiếu & đối chiếu bảng kiểm Rubric'}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[11px] text-muted-foreground">{step.timeWindow}</span>
+                    </div>
+                    <p className="mt-1.5 text-muted-foreground leading-relaxed pl-7">{step.detail}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-lg bg-card p-3 text-xs text-muted-foreground space-y-1">
+                <p>
+                  Chưa có tiến trình soi chiếu cho nguồn này. Bấm <strong>&quot;Phân tích {isImage ? 'ảnh' : 'video'} này&quot;</strong> để kích hoạt AI Agentic soi chiếu video theo toàn bộ {activeIndicators.length} tiêu chí Rubric.
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {activeIndicators.map((ind) => (
+                    <span key={ind.criterionCode} className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px]">
+                      {ind.criterionCode}: {ind.checklistTitle}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </details>
+
           <details key={`transcript-${currentSource.id}`} className="group rounded-xl border border-border bg-card px-4 py-3">
             <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden">
               <MessageSquareQuote className="size-4 shrink-0 text-primary" />
@@ -401,7 +511,7 @@ export function Step2({ app }: { app: AiLensController }) {
               Minh chứng ({list.length}/{session.evidences.length})
             </h2>
             <div role="group" aria-label="Lọc minh chứng theo tiêu chí hoặc độ rõ" className="flex flex-wrap gap-1">
-              {FILTERS.map((value) => (
+              {filterOptions.map(({ value, label, isCustom }) => (
                 <button
                   type="button"
                   key={value}
@@ -414,10 +524,15 @@ export function Step2({ app }: { app: AiLensController }) {
                   }
                   className={cn(
                     'h-8 rounded-lg px-2.5 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40',
-                    filter === value ? 'bg-foreground text-background' : 'text-muted-foreground hover:bg-muted'
+                    filter === value
+                      ? 'bg-foreground text-background font-semibold'
+                      : isCustom
+                      ? 'border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-medium'
+                      : 'text-muted-foreground hover:bg-muted'
                   )}
                 >
-                  {value === 'all' ? 'Tất cả' : value === 'unclear' ? 'Chưa rõ' : value}
+                  {label}
+                  {isCustom && ' ✨'}
                 </button>
               ))}
             </div>
