@@ -123,7 +123,7 @@ export const DEFAULT_STUDENTS: StudentSeatProfile[] = [
     visualPosition:
       'Áo đồng phục đỏ, đeo kính gọng mảnh, tóc ngang vai, đeo dây thẻ đỏ, ngồi đầu bàn bên trái (gần máy quay)',
     mainObservedRole:
-      'Đề xuất nâng mặt bàn (VID01, VID03); nhận nhiệm vụ bấm giờ (VID02); cầm cuộn băng dính dán cố định vạch đích (VID04); cầm điện thoại bấm giờ (Stopwatch) và đọc t1 = 1,21s (VID05)',
+      '• Thảo luận phương án tạo độ dốc mặt bàn\n• Dán băng dính cố định vạch đích 40 cm\n• Bấm đồng hồ và đọc kết quả đo thời gian (t1 = 1,21s)',
   },
   {
     code: 'HS02',
@@ -131,7 +131,7 @@ export const DEFAULT_STUDENTS: StudentSeatProfile[] = [
     visualPosition:
       'Áo đồng phục đỏ, đeo kính gọng đen dày, tóc ngắn ngang cằm, đeo dây thẻ đỏ, ngồi phía trong bên trái sát tường',
     mainObservedRole:
-      'Mở đầu nêu nhiệm vụ đo tốc độ và chỉ vào sơ đồ SGK hỏi ý kiến nhóm (VID01, VID03); chủ trì phân công 3 vai trò đo s, thả xe, bấm giờ (VID02); phản biện hạn chế mỏi/kẹp tay (VID03); nêu kế hoạch đo 3 lần và chốt s = 40 cm (VID04); ghi số liệu vào vở (VID05) và phát lệnh đo Lần 2 (VID06)',
+      '• Nêu nhiệm vụ thí nghiệm đo tốc độ theo SGK\n• Phân công nhiệm vụ đo quãng đường, bấm giờ và thả xe\n• Ghi chép số liệu vào vở và phát lệnh đo các lần',
   },
   {
     code: 'HS03',
@@ -139,7 +139,7 @@ export const DEFAULT_STUDENTS: StudentSeatProfile[] = [
     visualPosition:
       'Áo đồng phục đỏ, đeo kính, tóc dài, đeo dây thẻ xanh lá, cổ tay trái đeo chun buộc tóc trắng (scrunchie trắng), ngồi đầu bàn bên phải',
     mainObservedRole:
-      'Đề xuất kê chồng sách tạo độ dốc cân bằng theo SGK và nhận nhiệm vụ đo quãng đường (VID02); đặt thước đo 40 cm (VID04); đặt vật chặn vạch đích, đếm 3-2-1 thả xe và phát hiện bấm giờ chậm ở Lần 1 (VID05, VID06)',
+      '• Kê sách tạo độ dốc cân bằng cho mặt bàn\n• Đặt thước chốt quãng đường đo 40 cm\n• Đặt xe tại vạch xuất phát, đếm 3-2-1 và thả xe',
   },
   {
     code: 'HS04',
@@ -147,7 +147,7 @@ export const DEFAULT_STUDENTS: StudentSeatProfile[] = [
     visualPosition:
       'Áo đồng phục đỏ, không đeo kính, tóc dài, ngồi phía trong bên phải (cạnh chiếc ba lô màu tím)',
     mainObservedRole:
-      'Cùng xếp chồng sách kê mặt dốc và nhận nhiệm vụ điều khiển xe (VID02); cùng nâng mặt bàn góc trong (VID03); giữ đầu thước đo 40 cm (VID04) và thả thử xe từ đỉnh dốc (VID05)',
+      '• Nâng và giữ chắc chắn tấm mặt bàn dốc\n• Giữ đầu thước đo và kiểm tra vạch xuất phát\n• Thả thử xe từ đỉnh dốc để kiểm tra đường chạy',
   },
 ];
 

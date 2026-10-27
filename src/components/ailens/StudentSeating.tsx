@@ -23,9 +23,39 @@ export function StudentSeating({ app }: { app: AiLensController }) {
     students.find((student) => student.code === selectedCode) ??
     SEATS.map((seat) => students.find((student) => student.code === seat.code)).find(Boolean);
 
-  const activeStudentEvs = selected
-    ? session.evidences.filter((e) => e.studentCodes.includes(selected.code))
+  // Concise bullet summary focusing ONLY on this student's actions
+  const conciseBullets = selected?.mainObservedRole
+    ? selected.mainObservedRole
+        .split(/\n|;\s*/)
+        .map((line) => line.replace(/^[-•*]\s*/, '').trim())
+        .filter(Boolean)
     : [];
+
+  const getDisplayActions = (): string[] => {
+    if (session.sources.length === 0) return [];
+    if (conciseBullets.length > 0) return conciseBullets;
+
+    if (!selected) return [];
+    const studentEvs = session.evidences.filter((e) => e.studentCodes.includes(selected.code));
+    const extracted: string[] = [];
+    for (const ev of studentEvs) {
+      const parts = ev.observableBehavior.split(/[;.]\s+/);
+      for (const part of parts) {
+        if (part.includes(selected.code)) {
+          const cleaned = part
+            .replace(new RegExp(`^.*?(?=${selected.code})`, 'i'), '')
+            .replace(/\(\d{2}:\d{2}[–-]\d{2}:\d{2}\)/g, '')
+            .trim();
+          if (cleaned && !extracted.includes(cleaned)) {
+            extracted.push(cleaned);
+          }
+        }
+      }
+    }
+    return extracted.slice(0, 4);
+  };
+
+  const displayActions = getDisplayActions();
 
   return (
     <section aria-labelledby="group-title">
@@ -144,33 +174,23 @@ export function StudentSeating({ app }: { app: AiLensController }) {
                   <div>
                     <dt className="mb-2 font-semibold">Thao tác chính</dt>
                     {session.sources.length === 0 ? (
-                      <dd className="rounded-lg bg-muted/40 p-3 text-xs italic text-muted-foreground border border-dashed border-border">
+                      <dd className="rounded-xl border border-dashed border-border bg-muted/40 p-3 text-xs italic text-muted-foreground">
                         Chưa có video đầu vào. Hãy tải video hoặc ảnh phiếu để AI tiến hành nhận diện thao tác của học sinh {selected.code}.
                       </dd>
-                    ) : session.mode === 'demo_verified' ? (
-                      <dd className="whitespace-pre-wrap wrap-break-word">
-                        {selected.mainObservedRole}
-                      </dd>
-                    ) : activeStudentEvs.length > 0 ? (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">
-                          Ghi nhận từ {activeStudentEvs.length} minh chứng thực tế:
-                        </p>
-                        <ul className="space-y-1.5 text-xs text-foreground/90">
-                          {activeStudentEvs.map((ev) => (
-                            <li key={ev.id} className="rounded-lg border border-border bg-muted/50 p-2.5">
-                              <span className="font-semibold text-primary">{ev.id}</span>{' '}
-                              <span className="text-muted-foreground">
-                                ({ev.sourceId} • {formatTime(ev.startSeconds)}–{formatTime(ev.endSeconds)}):
-                              </span>{' '}
-                              <span>{ev.observableBehavior}</span>
+                    ) : displayActions.length > 0 ? (
+                      <dd>
+                        <ul className="space-y-2 text-sm">
+                          {displayActions.map((action, idx) => (
+                            <li key={idx} className="flex items-start gap-2.5 text-foreground/90 leading-relaxed">
+                              <span className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                              <span>{action}</span>
                             </li>
                           ))}
                         </ul>
-                      </div>
+                      </dd>
                     ) : (
-                      <dd className="rounded-lg bg-muted/40 p-3 text-xs italic text-muted-foreground border border-dashed border-border">
-                        Chưa có thao tác nào được ghi nhận cho {selected.code} từ các video hiện tại. Bấm "Phân tích video với Gemini" tại bước 2 hoặc bổ sung minh chứng thủ công.
+                      <dd className="rounded-xl border border-dashed border-border bg-muted/40 p-3 text-xs italic text-muted-foreground">
+                        Chưa có thao tác nào được ghi nhận cho {selected.code}.
                       </dd>
                     )}
                   </div>
@@ -225,13 +245,26 @@ export function StudentSeating({ app }: { app: AiLensController }) {
               <label className="block space-y-1.5">
                 <span className="font-medium">Đặc điểm nhận diện (quần áo, kính, tóc, vị trí)</span>
                 <textarea
-                  rows={3}
+                  rows={2}
                   className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   value={editingStudent.visualPosition}
                   onChange={(e) =>
                     setEditingStudent({ ...editingStudent, visualPosition: e.target.value })
                   }
                   placeholder="Mô tả đặc điểm ngoại hình hoặc trang phục để nhận diện trên video..."
+                />
+              </label>
+
+              <label className="block space-y-1.5">
+                <span className="font-medium">Thao tác chính tóm tắt (mỗi dòng một ý ngắn gọn)</span>
+                <textarea
+                  rows={3}
+                  className="w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  value={editingStudent.mainObservedRole}
+                  onChange={(e) =>
+                    setEditingStudent({ ...editingStudent, mainObservedRole: e.target.value })
+                  }
+                  placeholder="Ví dụ:&#10;• Bấm đồng hồ đo thời gian&#10;• Dán vạch đích 40 cm"
                 />
               </label>
             </div>
@@ -250,6 +283,7 @@ export function StudentSeating({ app }: { app: AiLensController }) {
                   app.handleUpdateStudent(editingStudent.code, {
                     seatLabel: editingStudent.seatLabel,
                     visualPosition: editingStudent.visualPosition,
+                    mainObservedRole: editingStudent.mainObservedRole,
                   });
                   setEditingStudent(null);
                 }}
