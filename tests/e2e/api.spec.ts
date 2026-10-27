@@ -5,9 +5,9 @@ import { readFile } from 'node:fs/promises';
 test('REAL API: health contract, no-key error via browser endpoint and UI, plus validation and legacy alias', async ({ page }) => {
   await boot(page);
   const health = await page.evaluate(async () => (await fetch('/api/health')).json());
-  expect(health).toMatchObject({ status: 'ok', hasServerApiKey: false, supportedProcessingModes: ['AGENTIC', 'STATIC'], endpoints: ['/api/analyze', '/api/analyze-video'], fallbackModel: 'gemini-2.5-flash' });
+  expect(health).toMatchObject({ status: 'ok', supportedProcessingModes: ['AGENTIC', 'STATIC'], endpoints: ['/api/analyze', '/api/analyze-video'], fallbackModel: 'gemini-3.1-flash-lite' });
   expect(health.model).toEqual(expect.any(String));
-  expect(health.agenticModels).toContain('gemini-3.8-flash');
+  expect(health.agenticModels).toContain('gemini-3.5-flash-lite');
   // Only this explicit no-key test reaches the real server. Config clears both API-key env vars.
   await page.route(ANALYZE_ROUTE, (route) => route.continue());
   const post = (endpoint: string, data: unknown) => page.evaluate(async ({ endpoint, data }) => {

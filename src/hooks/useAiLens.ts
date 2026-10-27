@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   CRITERION_TO_INDICATOR,
+  DEFAULT_STUDENTS,
   DEFAULT_VIDEO_SOURCES,
   INITIAL_DEMO_SESSION,
   RUBRIC_INDICATORS,
@@ -63,6 +64,20 @@ export function useAiLens() {
         const parsed = JSON.parse(saved);
         const validated = validateImportedSession(parsed);
         if (validated.valid && validated.session && Array.isArray(validated.session.sources)) {
+          const hasLegacyRoleText = validated.session.students.some(
+            (st) => st.mainObservedRole && st.mainObservedRole.includes('(VID01')
+          );
+          if (hasLegacyRoleText) {
+            return {
+              ...validated.session,
+              students: validated.session.students.map((st) => {
+                const fresh = DEFAULT_STUDENTS.find((d) => d.code === st.code);
+                return fresh && st.mainObservedRole.includes('(VID01')
+                  ? { ...st, mainObservedRole: fresh.mainObservedRole }
+                  : st;
+              }),
+            };
+          }
           return validated.session;
         }
       }
@@ -115,6 +130,7 @@ export function useAiLens() {
   const [peerRecordedBy, setPeerRecordedBy] = useState<'student' | 'teacher_assisted'>('student');
   const [peerTargetMap, setPeerTargetMap] = useState<Record<string, StudentCode | ''>>({});
   const [peerNoteDraft, setPeerNoteDraft] = useState<Record<string, string>>({});
+  const [peerAlert, setPeerAlert] = useState<string | null>(null);
 
   // Step 5: Teacher queue & decision state
   const [teacherFilter, setTeacherFilter] = useState<'priority' | 'all'>('priority');
@@ -291,8 +307,15 @@ export function useAiLens() {
     const isImage = file.type.startsWith('image/');
     const meta = await inspectVideoFileMetadata(file);
     const objectUrl = URL.createObjectURL(file);
-    const nextIndex = session.sources.length + 1;
-    const newId = isImage ? `IMG0${nextIndex}` : `VID0${nextIndex}`;
+    const prefix = isImage ? 'IMG' : 'VID';
+    const existingIndices = session.sources
+      .map((s) => {
+        const match = s.id.match(new RegExp(`^${prefix}0*(\\d+)`));
+        return match ? parseInt(match[1], 10) : 0;
+      })
+      .filter((n) => !isNaN(n));
+    const nextNum = existingIndices.length > 0 ? Math.max(...existingIndices) + 1 : 1;
+    const newId = `${prefix}${String(nextNum).padStart(2, '0')}`;
     const mimeType = file.type || (isImage ? 'image/jpeg' : 'video/mp4');
 
     customBlobsRef.current.set(newId, { blob: file, mimeType });
@@ -358,6 +381,19 @@ export function useAiLens() {
     const targetSource = session.sources.find((s) => s.id === sourceId);
     if (!targetSource) return;
 
+    if (targetSource.videoUrl?.startsWith('blob:')) {
+      try {
+        URL.revokeObjectURL(targetSource.videoUrl);
+      } catch {
+        // ignore revoke error
+      }
+    }
+
+    if (session.sources.length <= 1) {
+      await handleDeleteAllSources();
+      return;
+    }
+
     if (targetSource.isCustomUpload) {
       customBlobsRef.current.delete(sourceId);
       await deleteCustomMediaFromIndexedDb(sourceId);
@@ -382,6 +418,16 @@ export function useAiLens() {
   };
 
   const handleDeleteAllSources = async () => {
+    session.sources.forEach((s) => {
+      if (s.videoUrl?.startsWith('blob:')) {
+        try {
+          URL.revokeObjectURL(s.videoUrl);
+        } catch {
+          // ignore revoke error
+        }
+      }
+    });
+
     customBlobsRef.current.clear();
     await clearAllCustomMediaFromIndexedDb();
 
@@ -531,9 +577,18 @@ export function useAiLens() {
         ...src,
         expectedCriteria: Array.from(new Set([...src.expectedCriteria, ...customCodes])),
       }));
+      const validIndicatorCodes = new Set(newIndicators.map((i) => i.indicatorCode));
+      const markedDecisions = prev.decisions.map((dec) => {
+        if (!validIndicatorCodes.has(dec.indicatorCode)) {
+          return { ...dec, isStale: true };
+        }
+        return dec;
+      });
+      const reconciledDecisions = reconcileSessionDecisions(prev.evidences, markedDecisions);
       return {
         ...prev,
         sources: updatedSources,
+        decisions: reconciledDecisions,
         rubricIndicators: newIndicators,
         rubricVersion: `Tùy biến GDPT 2018 (${newIndicators.length} tiêu chí)`,
         sessionRevision: (prev.sessionRevision || 1) + 1,
@@ -667,9 +722,10 @@ export function useAiLens() {
     const explicitTarget = peerTargetMap[ev.id] || undefined;
     const check = canPeerReviewerVerify(ev, selectedPeerReviewer, explicitTarget);
     if (!check.allowed) {
-      alert(check.reason);
+      setPeerAlert(check.reason || 'Học sinh không đủ điều kiện kiểm chứng thẻ này.');
       return;
     }
+    setPeerAlert(null);
     const targetLabel = explicitTarget ? ` (đối với ${explicitTarget})` : '';
     const noteText =
       peerNoteDraft[ev.id]?.trim() ||
@@ -919,6 +975,8 @@ export function useAiLens() {
     setPeerTargetMap,
     peerNoteDraft,
     setPeerNoteDraft,
+    peerAlert,
+    setPeerAlert,
     teacherFilter,
     setTeacherFilter,
     decisionAlert,

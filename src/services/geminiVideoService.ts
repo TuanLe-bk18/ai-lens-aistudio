@@ -39,6 +39,7 @@ export interface AnalyzeVideoResult {
 
 const AGENTIC_MODELS = [
   'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
 ];
 
 export async function analyzeClassroomMediaWithGemini(
@@ -203,10 +204,11 @@ ${checklistText}
 
   if (!isImage && requestedMode === 'AGENTIC') {
     try {
+      const safeId = String(sourceId).replace(/[^a-zA-Z0-9_-]/g, '');
       const ext = mimeType.includes('webm') ? '.webm' : '.mp4';
       tempFilePath = path.join(
         os.tmpdir(),
-        `ailens_${sourceId}_${Date.now()}${ext}`
+        `ailens_${safeId || 'src'}_${Date.now()}${ext}`
       );
       fs.writeFileSync(tempFilePath, Buffer.from(base64Data, 'base64'));
 
@@ -241,7 +243,7 @@ ${checklistText}
 
   const preferredModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
   const candidateModels = Array.from(
-    new Set([preferredModel, 'gemini-3.5-flash-lite'])
+    new Set([preferredModel, 'gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'])
   );
 
   let response: any;

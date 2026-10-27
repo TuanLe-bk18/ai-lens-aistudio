@@ -415,10 +415,17 @@ export function applyEvidenceUpdateWithInvalidation(
     isResolvedByTeacher ? { ...pr, resolvedByTeacher: true } : pr
   );
 
+  const matchedInd = (state.rubricIndicators || RUBRIC_INDICATORS).find((r) => r.criterionCode === updatedEvidence.criterionCode);
+  const resolvedIndicatorCode =
+    updatedEvidence.indicatorCode ||
+    matchedInd?.indicatorCode ||
+    CRITERION_TO_INDICATOR[updatedEvidence.criterionCode] ||
+    '2.4';
+
   const bumpedEvidence: EvidenceItem = {
     ...updatedEvidence,
     revision: nextRevision,
-    indicatorCode: updatedEvidence.indicatorCode || CRITERION_TO_INDICATOR[updatedEvidence.criterionCode] || '2.4',
+    indicatorCode: resolvedIndicatorCode,
     resolvedAtRevision: isResolvedByTeacher ? nextRevision : updatedEvidence.resolvedAtRevision,
     selfReview: updatedEvidence.selfReview
       ? {
@@ -851,9 +858,15 @@ export function buildStudentLearningRecommendation(
         `Chỉ số ${ind.indicatorCode} (${ind.checklistTitle}): Đạt mức ${level} — ${decision?.rationale || ind.levels[level]}`
       );
       if (level === 'M2') {
-        nextTasks.push(
-          `Nâng cao ${ind.indicatorCode} lên M3: Chủ động giải thích vì sao cần đo lặp lại 3 lần và giữ ổn định góc nghiêng mặt dốc.`
-        );
+        if (ind.indicatorCode === '2.4') {
+          nextTasks.push(
+            `Nâng cao ${ind.indicatorCode} lên M3: Chủ động giải thích vì sao cần đo lặp lại 3 lần và giữ ổn định góc nghiêng mặt dốc.`
+          );
+        } else {
+          nextTasks.push(
+            `Nâng cao ${ind.indicatorCode} lên M3: ${ind.levels.M3 || `Chủ động thực hiện độc lập và hướng dẫn các bạn khác về ${ind.checklistTitle.toLowerCase()}.`}`
+          );
+        }
       }
     } else if (level === 'M1') {
       strengths.push(
@@ -863,7 +876,7 @@ export function buildStudentLearningRecommendation(
         `Chỉ số ${ind.indicatorCode}: Cần rèn tính tự chủ khi thực hiện quy trình mà không phụ thuộc gợi ý.`
       );
       nextTasks.push(
-        `Nhiệm vụ rèn luyện ${ind.indicatorCode} (M1 → M2): Tự thực hiện trọn vẹn thao tác ${ind.checklistTitle.toLowerCase()} và ghi kết quả 3 lần đo độc lập.`
+        `Nhiệm vụ rèn luyện ${ind.indicatorCode} (M1 → M2): ${ind.levels.M2 || `Tự thực hiện trọn vẹn thao tác ${ind.checklistTitle.toLowerCase()} mà không cần giáo viên gợi ý.`}`
       );
     } else {
       areasToDevelop.push(

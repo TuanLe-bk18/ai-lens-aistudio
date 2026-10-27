@@ -100,12 +100,12 @@ test('real image/video uploads survive IndexedDB reload; missing-media warnings 
   await expect.poll(async () => (await mediaRecords(page)).length).toBe(1);
   await addManual(page, 3, 'E2E reset must discard this student evidence');
   await settings(page);
-  page.once('dialog', (dialog) => dialog.dismiss());
   await page.getByRole('button', { name: 'Khôi phục dữ liệu gốc', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Hủy bỏ', exact: true }).click();
   expect((await persisted(page)).sources.length).toBe(9);
   await settings(page);
-  page.once('dialog', (dialog) => dialog.accept());
   await page.getByRole('button', { name: 'Khôi phục dữ liệu gốc', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Xác nhận khôi phục', exact: true }).click();
   await expect.poll(async () => (await persisted(page))?.sources.length).toBe(6);
   expect(await mediaRecords(page)).toEqual([]);
   const reset = await persisted(page);

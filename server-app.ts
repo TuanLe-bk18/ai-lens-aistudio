@@ -126,8 +126,8 @@ export async function startServer() {
       status: 'ok',
       hasServerApiKey: Boolean(activeKey),
       model: process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite',
-      agenticModels: ['gemini-3.5-flash-lite'],
-      fallbackModel: 'gemini-3.5-flash-lite',
+      agenticModels: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'],
+      fallbackModel: 'gemini-3.1-flash-lite',
       supportedProcessingModes: ['AGENTIC', 'STATIC'],
       endpoints: ['/api/analyze', '/api/analyze-video'],
     });

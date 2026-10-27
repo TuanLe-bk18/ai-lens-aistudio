@@ -5,6 +5,7 @@ import { RUBRIC_INDICATORS } from '../data/rubricData';
 
 const CANDIDATE_MODELS = [
   'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
 ];
 
 export interface ExtractedRubricResult {

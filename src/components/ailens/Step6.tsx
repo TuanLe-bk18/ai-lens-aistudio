@@ -149,7 +149,14 @@ export function Step6({ app }: { app: AiLensController }) {
           <div className="flex flex-wrap gap-x-6 gap-y-1 border-t border-border pt-3 text-xs text-muted-foreground">
             <p>Mã phiên: {session.sessionId} · v{session.sessionRevision}</p>
             <p>Rubric: {session.rubricVersion}</p>
-            <p>Chế độ: {session.mode === 'demo_verified' ? 'Dữ liệu demo đã kiểm chứng' : 'Phân tích AI trực tiếp'}</p>
+            <p>
+              Chế độ:{' '}
+              {session.mode === 'demo_verified'
+                ? 'Dữ liệu demo đã kiểm chứng'
+                : session.mode === 'custom'
+                ? 'Phiên tùy chỉnh'
+                : 'Phân tích AI trực tiếp'}
+            </p>
           </div>
         </Card>
 

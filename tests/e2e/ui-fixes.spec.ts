@@ -132,11 +132,8 @@ test('reset from a mutated persisted session updates the loaded choice and disca
   const mountedPanel = await panel.elementHandle();
   expect(mountedPanel).not.toBeNull();
   await settings(page);
-  page.once('dialog', async (dialog) => {
-    expect(dialog.type()).toBe('confirm');
-    await dialog.accept();
-  });
   await page.getByRole('button', { name: 'Khôi phục dữ liệu gốc', exact: true }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Xác nhận khôi phục', exact: true }).click();
   await expect.poll(async () => (await persisted(page))?.sessionId).toBe(demo().sessionId);
   await expect(page.getByRole('tab', { name: 'Chốt năng lực', exact: true })).toHaveAttribute('aria-selected', 'true');
   await expect(panel.getByText('HS01 · TC1 · 2.3', { exact: true })).toBeVisible();

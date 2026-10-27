@@ -62,13 +62,14 @@ export function Checklist({
   };
 
   return (
-    <section aria-labelledby="rubric-title">
+    <section aria-label="Bảng kiểm">
       <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
             <h2 id="rubric-title" className="text-base font-semibold">
-              Bảng kiểm Rubric
+              Bảng kiểm
             </h2>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rubric</span>
             {isCustom && (
               <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
                 Đã tùy biến ({activeList.length} tiêu chí)

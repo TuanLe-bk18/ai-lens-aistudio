@@ -51,6 +51,7 @@ export function AppDialogs({ app }: { app: AiLensController }) {
         <label className="block space-y-1.5 text-sm font-medium">
           <span>Gemini API Key (Tùy chọn)</span>
           <input
+            aria-label="Gemini API Key"
             autoFocus
             type="password"
             autoComplete="off"
@@ -80,7 +81,7 @@ export function AppDialogs({ app }: { app: AiLensController }) {
         <details className="text-xs text-muted-foreground rounded-lg border border-border p-2.5">
           <summary className="cursor-pointer font-medium text-foreground">Mô hình AI & Cơ chế dự phòng</summary>
           <p className="mt-2 leading-relaxed">
-            Hệ thống phân tích video sử dụng mô hình đa phương thức <strong>gemini-3.5-flash-lite</strong> với khả năng đồng bộ khẩu hình và lời thoại (Speaker Diarization). Đối với 6 clip thực nghiệm mặc định, hệ thống luôn sẵn sàng bộ dữ liệu kiểm chuẩn dự phòng giúp giáo viên phân tích tức thì.
+            Hệ thống phân tích video sử dụng mô hình đa phương thức <strong>gemini-3.5-flash-lite</strong> (dự phòng tự động <strong>gemini-3.1-flash-lite</strong>) với khả năng đồng bộ khẩu hình và lời thoại (Speaker Diarization). Đối với 6 clip thực nghiệm mặc định, hệ thống luôn sẵn sàng bộ dữ liệu kiểm chuẩn dự phòng giúp giáo viên phân tích tức thì.
           </p>
         </details>
         <div className="flex justify-end gap-2 border-t border-border pt-4">

@@ -50,6 +50,19 @@ export function Step4({ app }: { app: AiLensController }) {
         </p>
       </div>
 
+      {app.peerAlert && (
+        <div role="alert" className="flex items-center justify-between rounded-xl bg-destructive-soft p-3.5 text-sm font-medium text-destructive">
+          <span>{app.peerAlert}</span>
+          <button
+            type="button"
+            onClick={() => app.setPeerAlert(null)}
+            className="text-xs underline hover:opacity-80"
+          >
+            Đóng
+          </button>
+        </div>
+      )}
+
       <Notice>
         Không tự kiểm chứng cho chính mình. Với thẻ nhiều người, em vẫn có thể chọn rõ
         một bạn khác nếu quy tắc độc lập cho phép. Mỗi bạn đều có thể gửi ý kiến riêng.

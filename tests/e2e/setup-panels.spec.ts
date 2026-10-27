@@ -83,9 +83,13 @@ async function expectStudentDetail(page: Page, code: StudentCode, profiles = dem
   await expect(group.getByRole('region', { name: seats.find((seat) => seat.code === code)!.label, exact: true })).toHaveAttribute('id', 'student-detail-panel');
   await expect(button).toHaveAttribute('aria-pressed', 'true');
   await expect(diagram.locator('button[aria-pressed="true"]')).toHaveCount(1);
-  for (const text of [selected.seatLabel, selected.visualPosition, selected.mainObservedRole]) await expectReadableText(detail, text);
+  for (const text of [selected.seatLabel, selected.visualPosition]) await expectReadableText(detail, text);
+  const roleLines = selected.mainObservedRole.split(/\n|;\s*/).map((l) => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+  for (const line of roleLines) await expectReadableText(detail, line);
   for (const other of profiles.filter((student) => student.code !== code)) {
-    for (const text of [other.seatLabel, other.visualPosition, other.mainObservedRole]) await expect(detail).not.toContainText(text);
+    for (const text of [other.seatLabel, other.visualPosition]) await expect(detail).not.toContainText(text);
+    const otherLines = other.mainObservedRole.split(/\n|;\s*/).map((l) => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+    for (const line of otherLines) await expect(detail).not.toContainText(line);
   }
 }
 
@@ -103,7 +107,9 @@ async function expectSeatMapping(diagram: Locator) {
     expect(box.height).toBeGreaterThanOrEqual(44);
   }
   for (const student of demo().students) {
-    for (const text of [student.seatLabel, student.visualPosition, student.mainObservedRole]) await expect(diagram).not.toContainText(text);
+    for (const text of [student.seatLabel, student.visualPosition]) await expect(diagram).not.toContainText(text);
+    const lines = student.mainObservedRole.split(/\n|;\s*/).map((l) => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+    for (const line of lines) await expect(diagram).not.toContainText(line);
   }
   const [farLeft, farRight, nearLeft, nearRight] = await seatGeometry(diagram);
   const table = await rect(diagram.getByLabel('Bàn thí nghiệm', { exact: true }));
@@ -333,7 +339,8 @@ test('importing incomplete and empty student lists clears stale selected details
   await expectStudentDetail(page, code, imported.students);
   for (const student of demo().students.filter((student) => !imported.students.some((item) => item.code === student.code))) {
     await expect(detail).not.toContainText(student.visualPosition);
-    await expect(detail).not.toContainText(student.mainObservedRole);
+    const lines = student.mainObservedRole.split(/\n|;\s*/).map((l) => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+    for (const line of lines) await expect(detail).not.toContainText(line);
   }
   for (const student of imported.students) {
     await seatButton(diagram, student.code).click();
@@ -346,7 +353,8 @@ test('importing incomplete and empty student lists clears stale selected details
   await expect(diagram.locator('button[aria-pressed="true"]')).toHaveCount(0);
   for (const student of demo().students) {
     await expect(group).not.toContainText(student.visualPosition);
-    await expect(group).not.toContainText(student.mainObservedRole);
+    const lines = student.mainObservedRole.split(/\n|;\s*/).map((l) => l.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
+    for (const line of lines) await expect(group).not.toContainText(line);
   }
   await expectSelectedCriterion(page, 'TC1');
   expect((await persisted(page)).students).toEqual([]);
